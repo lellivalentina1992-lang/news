@@ -1,27 +1,30 @@
 export default async function handler(req, res) {
-  const { messaggio, contesto, webAttiva, apiKey, searchId } = req.body;
-  const oggi = new Date().toISOString().split('T')[0];
-
-  let datiWeb = "";
-  if (webAttiva) {
-    let query = messaggio;
-    if (messaggio.toLowerCase().includes("oggi")) query += ` after:${oggi}`;
-    try {
-      const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchId}&q=${encodeURIComponent(query)}`);
-      const sData = await sRes.json();
-      datiWeb = sData.items ? sData.items.map(i => `${i.title}: ${i.snippet}`).join("\n") : "Nessun risultato web.";
-    } catch (e) { datiWeb = "Errore durante la ricerca web."; }
-  }
-
-  const prompt = `Sei un esperto news. Oggi è il 21 dicembre 2025. Analizza i feed: ${contesto}. Analizza il web: ${datiWeb}. Rispondi alla domanda: ${messaggio}. Usa intestazioni H3 e elenchi puntati.`;
+  if (req.method !== 'POST') return res.status(405).send('Metodo non consentito');
+  const { messaggio, contesto, apiKey } = req.body;
 
   try {
-    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    // MODELLO: Gemini 3 Pro (release Dicembre 2025)
+    const model = "gemini-3-pro-latest"; 
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `ISTRUZIONI DI SISTEMA: Sei l'assistente di una ricercatrice. Scrivi un TG lungo, narrativo e discorsivo. Non usare elenchi puntati. Non usare mai emoji. Usa solo intestazioni H3 per dividere i capitoli. Quando trovi la stessa notizia su più fonti, confrontale e crea un unico paragrafo dettagliato.\n\nCONTESTO NOTIZIE CARICATE:\n${contesto}\n\nRICHIESTA UTENTE: ${messaggio}` }]
+        }],
+        generationConfig: { 
+          temperature: 0.7,
+          maxOutputTokens: 3500 
+        }
+      })
     });
-    const aiData = await aiRes.json();
-    res.status(200).json({ risposta: aiData.candidates[0].content.parts[0].text });
-  } catch (e) { res.status(500).json({ risposta: "Errore dell'IA o Chiave API non valida." }); }
+
+    const data = await response.json();
+    if (!data.candidates) throw new Error("Risposta API non valida");
+    
+    const rispostaText = data.candidates[0].content.parts[0].text;
+    res.status(200).json({ risposta: rispostaText });
+  } catch (error) {
+    res.status(500).json({ risposta: "Errore nel collegamento con Gemini 3 Pro." });
+  }
 }
