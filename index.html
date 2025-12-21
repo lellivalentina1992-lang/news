@@ -2,109 +2,146 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Edicola Valentina - Edizioni Speciali</title>
+    <title>Edicola Valentina</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
-        button { padding: 15px; margin: 10px 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; width: 100%; text-align: left; }
-        .btn-tg-1 { border-left: 15px solid #005a87; background: #f0f7ff; }
-        .btn-tg-2 { border-left: 15px solid #28a745; background: #f0fff4; }
-        .btn-tg-3 { border-left: 15px solid #6f42c1; background: #f5f0ff; }
-        input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; width: 80px; }
-        .chat-area { background: #fff; padding: 25px; border: 3px solid #005a87; border-radius: 8px; margin-top: 40px; }
-        article { border-bottom: 1px solid #eee; padding: 10px 0; }
+        button { padding: 12px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
+        .btn-web { background: #eef6ff; border: 2px solid #005a87; }
+        .btn-web.attiva { background: #005a87; color: white; }
+        input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; margin: 5px 0; }
+        section { border-bottom: 2px solid #eee; padding: 20px 0; }
+        article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 15px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .info-tag { font-weight: bold; color: #d93025; font-size: 1rem; display: block; }
+        .chat-box { background: #fff; padding: 20px; border: 3px solid #005a87; border-radius: 8px; margin-top: 30px; }
     </style>
 </head>
 <body>
-    <header><h1>Edicola Valentina: Scegli l'Edizione del TG</h1></header>
+    <header><h1>Edicola Valentina</h1></header>
 
-    <section>
-        <h2>Configurazione e Ore</h2>
-        <label for="input-ore">Analizza le ultime (ore):</label>
-        <input type="number" id="input-ore" value="24">
-        <p>Dopo aver scelto le ore, premi uno dei tre pulsanti qui sotto per generare il racconto.</p>
+    <section aria-labelledby="h-config">
+        <h2 id="h-config">1. Configurazione</h2>
+        <input type="password" id="api-key-input" placeholder="Chiave API Gemini">
+        <button onclick="salvaChiave()">Salva Chiave</button>
     </section>
 
-    <section aria-label="Edizioni del TG">
-        <button class="btn-tg-1" onclick="generaTGSettoriale(['ciechi', 'psicologia', 'tecnologia'], 'RICERCA E VITA QUOTIDIANA')">
-            1. Genera TG Ricerca e Vita (Ciechi, Psicologia, Tech)
-        </button>
-        
-        <button class="btn-tg-2" onclick="generaTGSettoriale(['news', 'roma'], 'ATTUALITÀ E TERRITORIO')">
-            2. Genera TG Cronaca e Roma (News e Territorio)
-        </button>
-
-        <button class="btn-tg-3" onclick="generaTGSettoriale(['approfondimenti'], 'ANALISI E CULTURA')">
-            3. Genera TG Approfondimenti (Analisi e Long-form)
-        </button>
+    <section aria-labelledby="h-email">
+        <h2 id="h-email">2. Analisi Email Thunderbird</h2>
+        <label for="input-file">Carica file .txt esportato:</label><br>
+        <input type="file" id="input-file" accept=".txt">
+        <button onclick="caricaEmail()">Carica e Analizza Email</button>
     </section>
 
-    <main id="risposta-ai-container" class="chat-area" style="display:none;">
-        <h2 id="titolo-tg-corrente">Il tuo TG</h2>
-        <div id="risposta-ai" aria-live="assertive"></div>
+    <section aria-labelledby="h-feed">
+        <h2 id="h-feed">3. Categorie Notizie</h2>
+        <nav>
+            <button onclick="caricaGruppo('ciechi')">Ciechi</button>
+            <button onclick="caricaGruppo('news')">News Nazionali</button>
+            <button onclick="caricaGruppo('approfondimenti')">Approfondimenti</button>
+            <button onclick="caricaGruppo('psicologia')">Psicologia</button>
+            <button onclick="caricaGruppo('roma')">Roma</button>
+            <button onclick="caricaGruppo('tecnologia')">Tecnologia</button>
+        </nav>
+    </section>
+
+    <main id="main-content" aria-live="polite">
+        <h2 id="titolo-sezione">Nessuna categoria selezionata</h2>
+        <div id="container-notizie"></div>
     </main>
+
+    <section class="chat-box">
+        <h2>4. Chiedi all'Assistente Gemini 3</h2>
+        <button id="btn-web-toggle" class="btn-web" onclick="toggleWeb()">Ricerca Online: OFF</button><br><br>
+        
+        <label for="input-chat">Fai una domanda sui feed o su internet:</label><br>
+        <input type="text" id="input-chat" style="width: 80%;" placeholder="Es: Cosa dicono le email? o Cerca news su sciopero">
+        <button onclick="inviaDomanda()">Invia</button>
+
+        <div id="risposta-ai" aria-live="assertive" style="margin-top: 20px;"></div>
+    </section>
 
     <script>
         let tutteLeNotizie = [];
+        let contestoCorrente = "";
+        let webAttiva = false;
+
         const feedMap = {
             ciechi: [{n:"Reddit Blind", u:"https://www.reddit.com/r/Blind.rss"}, {n:"NVDA-it", u:"https://groups.io/g/nvda-it/rss"}, {n:"AppleVis", u:"https://www.applevis.com/blog/feed"}],
             news: [{n:"ANSA", u:"https://www.ansa.it/sito/ansait_rss.xml"}, {n:"Sole 24 Ore", u:"https://www.ilsole24ore.com/rss/italia.xml"}],
-            approfondimenti: [{n:"Il Post", u:"https://www.ilpost.it/feed/"}, {n:"Valigia Blu", u:"https://www.valigiablu.it/feed/"}, {n:"Il Tascabile", u:"https://www.iltascabile.com/feed/"}],
-            psicologia: [{n:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}, {n:"Mind Le Scienze", u:"https://www.lescienze.it/topics/mente-e-cervello/rss"}, {n:"Doppiozero Psiche", u:"https://www.doppiozero.com/tag/psicologia/feed/"}],
-            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}, {n:"Tiburno TV", u:"https://tiburno.tv/feed/"}],
+            approfondimenti: [{n:"Il Post", u:"https://www.ilpost.it/feed/"}, {n:"Valigia Blu", u:"https://www.valigiablu.it/feed/"}],
+            psicologia: [{n:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}, {n:"Mind Le Scienze", u:"https://www.lescienze.it/topics/mente-e-cervello/rss"}],
+            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}],
             tecnologia: [{n:"Reddit tech", u:"https://www.reddit.com/r/technews.rss"}, {n:"Google AI", u:"https://news.google.com/rss/search?q=AI&hl=it&gl=IT&ceid=IT:it"}]
         };
 
-        async function scaricaFeed(listaCategorie) {
-            tutteLeNotizie = [];
-            let sitiDaScaricare = [];
-            listaCategorie.forEach(cat => sitiDaScaricare = sitiDaScaricare.concat(feedMap[cat]));
+        function formattaData(dr) {
+            const d = new Date(dr);
+            const adesso = new Date();
+            const ora = d.toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            return (adesso.toDateString() === d.toDateString()) ? `Oggi, ${ora}` : `${d.toLocaleString('it-IT', { day: 'numeric', month: 'long' })}, ${ora}`;
+        }
 
-            const promesse = sitiDaScaricare.map(sito => 
+        async function caricaGruppo(cat) {
+            tutteLeNotizie = [];
+            const cont = document.getElementById('container-notizie');
+            document.getElementById('titolo-sezione').innerText = `Caricamento ${cat}...`;
+            
+            const promesse = feedMap[cat].map(sito => 
                 fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`)
                 .then(r => r.text())
                 .then(xml => {
                     const xmlDoc = new DOMParser().parseFromString(xml, "text/xml");
                     Array.from(xmlDoc.querySelectorAll("item")).forEach(item => {
-                        const dRaw = item.querySelector("pubDate")?.textContent || "";
-                        tutteLeNotizie.push({ 
-                            fonte: sito.n, titolo: item.querySelector("title")?.textContent || "No titolo", 
-                            timestamp: new Date(dRaw).getTime() || 0
-                        });
+                        const dr = item.querySelector("pubDate")?.textContent || "";
+                        tutteLeNotizie.push({ fonte: sito.n, titolo: item.querySelector("title")?.textContent || "", data: formattaData(dr), ts: new Date(dr).getTime() });
                     });
-                }).catch(() => console.log("Errore su: " + sito.n))
+                })
             );
             await Promise.all(promesse);
+            tutteLeNotizie.sort((a,b) => b.ts - a.ts);
+            
+            cont.innerHTML = "";
+            contestoCorrente = "";
+            tutteLeNotizie.forEach(n => {
+                contestoCorrente += `[${n.fonte}] ${n.titolo}. `;
+                cont.innerHTML += `<article><span class="info-tag">${n.fonte}, ${n.data}</span><h3>${n.titolo}</h3></article>`;
+            });
+            document.getElementById('titolo-sezione').innerText = `Feed ${cat} pronto.`;
         }
 
-        async function generaTGSettoriale(categorie, titoloTG) {
-            const resBox = document.getElementById('risposta-ai');
-            const ore = document.getElementById('input-ore').value;
-            document.getElementById('risposta-ai-container').style.display = "block";
-            document.getElementById('titolo-tg-corrente').innerText = "TG: " + titoloTG;
-            
-            resBox.innerHTML = `<h3>Caricamento delle fonti per ${titoloTG}...</h3>`;
-            await scaricaFeed(categorie);
+        function caricaEmail() {
+            const file = document.getElementById('input-file').files[0];
+            if (!file) { alert("Seleziona il file .txt!"); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                contestoCorrente = e.target.result;
+                document.getElementById('risposta-ai').innerHTML = "<h3>Email caricate. Ora puoi fare domande nella chat qui sotto.</h3>";
+            };
+            reader.readAsText(file);
+        }
 
-            const limite = Date.now() - (ore * 60 * 60 * 1000);
-            const filtrate = tutteLeNotizie.filter(n => n.timestamp > limite);
-            
-            if (filtrate.length === 0) {
-                resBox.innerHTML = "<h3>Nessuna notizia trovata in questa categoria nelle ultime " + ore + " ore.</h3>";
-                return;
-            }
+        function toggleWeb() {
+            webAttiva = !webAttiva;
+            const btn = document.getElementById('btn-web-toggle');
+            btn.innerText = webAttiva ? "Ricerca Online: ATTIVA" : "Ricerca Online: OFF";
+            btn.className = webAttiva ? "btn-web attiva" : "btn-web";
+        }
 
-            resBox.innerHTML = "<h3>Gemini 3 Pro sta scrivendo l'edizione: " + titoloTG + ". Attendi...</h3>";
-            let contesto = filtrate.map(n => `[${n.fonte}] ${n.titolo}`).join(". ");
-            
+        async function inviaDomanda() {
             const key = localStorage.getItem('google_api_key');
-            const response = await fetch('/api/chat', {
+            const msg = document.getElementById('input-chat').value;
+            const resBox = document.getElementById('risposta-ai');
+            resBox.innerHTML = "<h3>Gemini 3 Pro sta elaborando...</h3>";
+
+            const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messaggio: `Fai un TG esaustivo per la sezione ${titoloTG}. Includi OGNI dettaglio.`, contesto: contesto, apiKey: key })
+                body: JSON.stringify({ messaggio: msg, contesto: contestoCorrente, apiKey: key, webAttiva: webAttiva })
             });
-            const data = await response.json();
+            const data = await res.json();
             resBox.innerHTML = `<div>${data.risposta}</div>`;
         }
+
+        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); alert("Chiave salvata!"); }
     </script>
 </body>
 </html>
