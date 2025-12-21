@@ -6,13 +6,10 @@
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
         button { padding: 12px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
-        .btn-tg { background: #005a87; color: white; border: none; width: 100%; margin-top: 20px; min-height: 60px; font-size: 1.2rem; }
-        input { padding: 12px; font-size: 1.1rem; margin: 10px 0; border: 2px solid #767676; border-radius: 4px; }
-        .input-ore { width: 80px; text-align: center; }
-        section { border-bottom: 3px solid #eee; padding: 20px 0; }
-        article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 25px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .info-tag { font-weight: bold; color: #d93025; font-size: 1.1rem; display: block; margin-bottom: 5px; }
+        .btn-super-tg { background: #d93025; color: white; border: none; width: 100%; height: 70px; font-size: 1.3rem; margin-bottom: 20px; }
+        input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; }
         .chat-area { background: #eef6ff; padding: 25px; border: 2px solid #005a87; border-radius: 8px; margin-top: 40px; }
+        article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 20px; background: #fff; }
     </style>
 </head>
 <body>
@@ -20,191 +17,109 @@
 
     <section>
         <h2>Configurazione</h2>
-        <label for="api-key-input">Chiave API:</label>
-        <input type="password" id="api-key-input">
+        <input type="password" id="api-key-input" placeholder="Incolla Chiave API">
         <button onclick="salvaChiave()">Salva Chiave</button>
-        <p id="stato-chiave" aria-live="polite"></p>
     </section>
 
     <section>
-        <h2>I miei Feed</h2>
+        <h2>Generazione TG Globale</h2>
+        <label for="input-ore">Quante ore vuoi analizzare? </label>
+        <input type="number" id="input-ore" style="width: 70px;" value="24">
+        <button class="btn-super-tg" onclick="generaSuperTG()">Genera Super TG Globale (Tutte le categorie)</button>
+    </section>
+
+    <section>
+        <h2>Esplora Categorie</h2>
         <nav>
-            <button onclick="caricaTuttoIlGruppo('ciechi')">Ciechi</button>
-            <button onclick="caricaTuttoIlGruppo('news')">News Nazionali</button>
-            <button onclick="caricaTuttoIlGruppo('approfondimenti')">Approfondimenti</button>
-            <button onclick="caricaTuttoIlGruppo('psicologia')">Psicologia</button>
-            <button onclick="caricaTuttoIlGruppo('roma')">Roma</button>
-            <button onclick="caricaTuttoIlGruppo('tecnologia')">Tecnologia</button>
+            <button onclick="caricaGruppo('ciechi')">Ciechi</button>
+            <button onclick="caricaGruppo('news')">News</button>
+            <button onclick="caricaGruppo('approfondimenti')">Approfondimenti</button>
+            <button onclick="caricaGruppo('psicologia')">Psicologia</button>
+            <button onclick="caricaGruppo('roma')">Roma</button>
         </nav>
     </section>
 
-    <section id="sezione-filtri" style="display:none;">
-        <h3>Filtra per sito</h3>
-        <div id="container-filtri"></div>
-    </section>
-
     <main id="main-content" aria-live="polite">
-        <h2 id="titolo-sezione">Scegli una categoria</h2>
+        <h2 id="titolo-sezione">Le tue notizie compariranno qui</h2>
         <div id="container-notizie"></div>
     </main>
 
-    <section class="chat-area">
-        <h2>Assistente Gemini 3 Pro</h2>
-        
-        <div style="margin-bottom: 20px; border: 1px solid #ccc; padding: 10px;">
-            <label for="input-ore">Inserisci quante ore vuoi analizzare per il TG (esempio 8 o 24):</label><br>
-            <input type="number" id="input-ore" class="input-ore" value="24">
-            <button class="btn-tg" onclick="generaTG()">Genera TG Personalizzato</button>
-        </div>
-
-        <div style="margin-top: 30px;">
-            <label for="input-chat">Fai una domanda specifica all'IA:</label><br>
-            <input type="text" id="input-chat" style="width: 70%;" placeholder="Scrivi qui...">
-            <button onclick="inviaAI()">Invia Domanda</button>
-        </div>
-
-        <div id="risposta-ai" aria-live="assertive" style="margin-top: 20px; background: white; padding: 15px; border: 1px solid #005a87;"></div>
+    <section id="risposta-ai-container" class="chat-area" style="display:none;">
+        <h2 id="titolo-tg">Il tuo TG Personalizzato</h2>
+        <div id="risposta-ai" aria-live="assertive"></div>
     </section>
 
     <script>
         let tutteLeNotizie = [];
-
         const feedMap = {
-            ciechi: [
-                {n: "Reddit Blind", u: "https://www.reddit.com/r/Blind.rss"},
-                {n: "NVDA-it", u: "https://groups.io/g/nvda-it/rss"},
-                {n: "AppleVis Blogs", u: "https://www.applevis.com/blog/feed"}
-            ],
-            news: [
-                {n: "ANSA", u: "https://www.ansa.it/sito/ansait_rss.xml"},
-                {n: "Sole 24 Ore", u: "https://www.ilsole24ore.com/rss/italia.xml"}
-            ],
-            approfondimenti: [
-                {n: "Il Post", u: "https://www.ilpost.it/feed/"},
-                {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
-                {n: "Il Tascabile", u: "https://www.iltascabile.com/feed/"}
-            ],
-            psicologia: [
-                {n: "State of Mind", u: "https://www.stateofmind.it/category/articoli/feed/"},
-                {n: "Mind Le Scienze", u: "https://www.lescienze.it/topics/mente-e-cervello/rss"},
-                {n: "Doppiozero Psiche", u: "https://www.doppiozero.com/tag/psicologia/feed/"}
-            ],
-            roma: [
-                {n: "Corriere Roma", u: "https://www.corriere.it/dynamic-feed/rss/section/roma.xml"},
-                {n: "RomaToday", u: "https://www.romatoday.it/rss"},
-                {n: "ATAC", u: "https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"},
-                {n: "Tiburno TV", u: "https://tiburno.tv/feed/"},
-                {n: "Canale Dieci", u: "https://canaledieci.it/feed/"},
-                {n: "TGR Lazio", u: "https://www.rainews.it/tgr/lazio/rss/tutti"}
-            ],
-            tecnologia: [
-                {n: "Reddit technews", u: "https://www.reddit.com/r/technews.rss"},
-                {n: "Google News AI", u: "https://news.google.com/rss/search?q=AI&hl=it&gl=IT&ceid=IT:it"}
-            ]
+            ciechi: [{n:"Reddit Blind", u:"https://www.reddit.com/r/Blind.rss"}, {n:"NVDA-it", u:"https://groups.io/g/nvda-it/rss"}, {n:"AppleVis", u:"https://www.applevis.com/blog/feed"}],
+            news: [{n:"ANSA", u:"https://www.ansa.it/sito/ansait_rss.xml"}, {n:"Sole 24 Ore", u:"https://www.ilsole24ore.com/rss/italia.xml"}],
+            approfondimenti: [{n:"Il Post", u:"https://www.ilpost.it/feed/"}, {n:"Valigia Blu", u:"https://www.valigiablu.it/feed/"}, {n:"Il Tascabile", u:"https://www.iltascabile.com/feed/"}],
+            psicologia: [{n:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}, {n:"Mind Le Scienze", u:"https://www.lescienze.it/topics/mente-e-cervello/rss"}, {n:"Doppiozero Psiche", u:"https://www.doppiozero.com/tag/psicologia/feed/"}],
+            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}, {n:"Tiburno TV", u:"https://tiburno.tv/feed/"}]
         };
 
-        function formattaDataVeloce(stringaData) {
-            if (!stringaData) return "Data non disponibile";
-            const d = new Date(stringaData);
-            const adesso = new Date();
-            const ora = d.toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
-            if (adesso.toDateString() === d.toDateString()) return `Oggi, ${ora}`;
-            return `${d.toLocaleString('it-IT', { day: 'numeric', month: 'long' })}, ${ora}`;
-        }
-
-        async function caricaTuttoIlGruppo(cat) {
-            const contNotizie = document.getElementById('container-notizie');
-            const contFiltri = document.getElementById('container-filtri');
-            document.getElementById('titolo-sezione').innerText = `Caricamento ${cat}...`;
-            contNotizie.innerHTML = ""; contFiltri.innerHTML = "";
-            document.getElementById('sezione-filtri').style.display = "block";
-            tutteLeNotizie = [];
-
-            const btnAll = document.createElement('button');
-            btnAll.innerText = "Mostra tutti";
-            btnAll.onclick = () => renderizzaNotizie();
-            contFiltri.appendChild(btnAll);
-
-            feedMap[cat].forEach(sito => {
-                const btn = document.createElement('button');
-                btn.innerText = sito.n;
-                btn.onclick = () => renderizzaNotizie(sito.n);
-                contFiltri.appendChild(btn);
-            });
-
-            const promesse = feedMap[cat].map(sito => 
+        async function scaricaFeed(listaSiti) {
+            const promesse = listaSiti.map(sito => 
                 fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`)
                 .then(r => r.text())
                 .then(xml => {
                     const xmlDoc = new DOMParser().parseFromString(xml, "text/xml");
-                    const items = Array.from(xmlDoc.querySelectorAll("item"));
-                    items.forEach(item => {
-                        const t = item.querySelector("title")?.textContent || "Senza titolo";
-                        const l = item.querySelector("link")?.textContent || "#";
-                        const dRaw = item.querySelector("pubDate")?.textContent || item.querySelector("date")?.textContent || "";
+                    Array.from(xmlDoc.querySelectorAll("item")).forEach(item => {
+                        const dRaw = item.querySelector("pubDate")?.textContent || "";
                         tutteLeNotizie.push({ 
-                            fonte: sito.n, titolo: t, link: l, 
-                            dataTesto: formattaDataVeloce(dRaw),
-                            timestamp: new Date(dRaw).getTime() || 0
+                            fonte: sito.n, titolo: item.querySelector("title")?.textContent || "No titolo", 
+                            timestamp: new Date(dRaw).getTime() || 0, dataTesto: dRaw
                         });
                     });
-                }).catch(() => console.log("Errore: " + sito.n))
+                })
             );
-
             await Promise.all(promesse);
-            tutteLeNotizie.sort((a, b) => b.timestamp - a.timestamp);
-            renderizzaNotizie();
-            document.getElementById('titolo-sezione').innerText = `Categoria ${cat} caricata.`;
         }
 
-        function renderizzaNotizie(filtro = null) {
+        async function caricaGruppo(cat) {
+            tutteLeNotizie = [];
+            document.getElementById('titolo-sezione').innerText = `Caricamento ${cat}...`;
+            await scaricaFeed(feedMap[cat]);
+            renderizza();
+        }
+
+        function renderizza() {
             const cont = document.getElementById('container-notizie');
             cont.innerHTML = "";
-            const notizieDaMostrare = filtro ? tutteLeNotizie.filter(n => n.fonte === filtro) : tutteLeNotizie;
-            notizieDaMostrare.forEach(n => {
-                cont.innerHTML += `<article><span class="info-tag">${n.fonte}, ${n.dataTesto}</span><h3>${n.titolo}</h3><a href="${n.link}" target="_blank">Apri</a></article>`;
+            tutteLeNotizie.sort((a,b) => b.timestamp - a.timestamp).forEach(n => {
+                cont.innerHTML += `<article><strong>${n.fonte}</strong><h3>${n.titolo}</h3></article>`;
             });
         }
 
-        async function generaTG() {
-            if (tutteLeNotizie.length === 0) { alert("Prima carica una categoria cliccando sui pulsanti sopra!"); return; }
+        async function generaSuperTG() {
+            tutteLeNotizie = [];
             const resBox = document.getElementById('risposta-ai');
-            const oreScelte = parseInt(document.getElementById('input-ore').value) || 24;
-            
-            resBox.innerHTML = `<h3>Gemini 3 Pro sta analizzando le ultime ${oreScelte} ore di notizie...</h3>`;
-            
-            const limiteTempo = Date.now() - (oreScelte * 60 * 60 * 1000);
-            const notizieFiltrate = tutteLeNotizie.filter(n => n.timestamp > limiteTempo);
+            const ore = document.getElementById('input-ore').value;
+            document.getElementById('risposta-ai-container').style.display = "block";
+            resBox.innerHTML = "<h3>Recupero di tutti i feed in corso...</h3>";
 
-            if (notizieFiltrate.length === 0) {
-                resBox.innerHTML = `<h3>Nessun fatto rilevante nelle ultime ${oreScelte} ore. Prova ad aumentare il tempo.</h3>`;
-                return;
-            }
+            let tutti = [];
+            Object.keys(feedMap).forEach(k => tutti = tutti.concat(feedMap[k]));
+            await scaricaFeed(tutti);
 
-            let contestoTesto = notizieFiltrate.map(n => `[${n.fonte}, ${n.dataTesto}] ${n.titolo}`).join(". ");
-            const promptTG = "Genera un TG lungo e narrativo. Non fare elenchi. Sii discorsiva.";
+            const limite = Date.now() - (ore * 60 * 60 * 1000);
+            const filtrate = tutteLeNotizie.filter(n => n.timestamp > limite);
             
-            await inviaAI(promptTG, contestoTesto);
-        }
-
-        async function inviaAI(istruzione = null, contestoOverride = null) {
+            resBox.innerHTML = "<h3>Gemini 3 Pro sta scrivendo il Super TG Esaustivo...</h3>";
+            let contesto = filtrate.map(n => `[${n.fonte}] ${n.titolo}`).join(". ");
+            
             const key = localStorage.getItem('google_api_key');
-            const msg = istruzione || document.getElementById('input-chat').value;
-            const contestoDati = contestoOverride || tutteLeNotizie.map(n => `[${n.fonte}] ${n.titolo}`).join(". ");
-            const resBox = document.getElementById('risposta-ai');
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messaggio: msg, contesto: contestoDati, apiKey: key })
-                });
-                const data = await response.json();
-                resBox.innerHTML = `<h3>Il tuo TG:</h3><div>${data.risposta}</div>`;
-            } catch (e) { resBox.innerHTML = "<h3>Errore API.</h3>"; }
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messaggio: `Fai il TG di tutte queste news delle ultime ${ore} ore.`, contesto: contesto, apiKey: key })
+            });
+            const data = await response.json();
+            resBox.innerHTML = `<div>${data.risposta}</div>`;
         }
 
-        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); document.getElementById('stato-chiave').innerText = "Chiave salvata!"; }
+        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); }
     </script>
 </body>
 </html>
