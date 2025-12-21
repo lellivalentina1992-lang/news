@@ -2,139 +2,177 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>La mia Rassegna Stampa</title>
+    <title>Edicola Valentina - Versione Integrata</title>
     <style>
-        body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 900px; margin: auto; color: #1a1a1a; }
-        button { padding: 12px; margin: 5px; font-size: 1rem; cursor: pointer; border: 2px solid #333; border-radius: 4px; }
-        input { padding: 10px; font-size: 1rem; margin: 5px 0; border: 1px solid #767676; }
-        section { border-bottom: 2px solid #ddd; padding: 20px 0; }
-        article { border-left: 5px solid #005a87; padding-left: 15px; margin-bottom: 25px; }
-        .config-area { background: #fdf2f2; padding: 15px; border: 2px dashed #cc0000; }
+        body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
+        button { padding: 15px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
+        input { padding: 12px; font-size: 1.1rem; margin: 10px 0; border: 2px solid #767676; border-radius: 4px; width: 85%; }
+        section { border-bottom: 3px solid #eee; padding: 25px 0; }
+        article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 25px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .fonte-tag { font-weight: bold; color: #d93025; text-transform: uppercase; font-size: 0.85rem; display: block; margin-bottom: 5px; }
+        .chat-area { background: #eef6ff; padding: 25px; border: 2px solid #005a87; border-radius: 8px; margin-top: 40px; }
     </style>
 </head>
 <body>
 
-    <header><h1>Rassegna Stampa Personale</h1></header>
+    <header><h1>La mia Edicola: Valentina</h1></header>
 
-    <section class="config-area" aria-labelledby="titolo-config">
-        <h2 id="titolo-config">Configurazione Chiave API</h2>
-        <label for="api-key-input">Incolla qui la tua API Key di Google:</label><br>
-        <input type="password" id="api-key-input" placeholder="La tua chiave segreta...">
-        <button onclick="salvaChiave()">Salva Chiave nel Browser</button>
-        <p id="stato-chiave" aria-live="polite">Chiave non ancora inserita.</p>
+    <section style="background: #fff5f5; padding: 15px; border: 2px dashed #d93025;">
+        <h2>Configurazione</h2>
+        <input type="password" id="api-key-input" placeholder="Incolla API Key per la Chat">
+        <button onclick="salvaChiave()">Salva Chiave</button>
+        <p id="stato-chiave" aria-live="polite"></p>
     </section>
 
-    <section aria-labelledby="titolo-news">
-        <h2 id="titolo-news">Notizie e Feed</h2>
+    <section aria-labelledby="titolo-feed">
+        <h2 id="titolo-feed">I miei Feed (Scegli categoria)</h2>
         <nav aria-label="Categorie">
-            <button onclick="caricaGruppo('news')">News Generali</button>
-            <button onclick="caricaGruppo('roma')">Roma e Mobilità</button>
-            <button onclick="caricaGruppo('ciechi')">Tecnologia Assistiva</button>
-            <button onclick="caricaGruppo('psicologia')">Psicologia</button>
+            <button onclick="caricaTuttoIlGruppo('ciechi')">♿ Ciechi</button>
+            <button onclick="caricaTuttoIlGruppo('news')">🌍 News Nazionali</button>
+            <button onclick="caricaTuttoIlGruppo('approfondimenti')">📑 Approfondimenti</button>
+            <button onclick="caricaTuttoIlGruppo('psicologia')">🧠 Psicologia</button>
+            <button onclick="caricaTuttoIlGruppo('roma')">🏙️ Roma</button>
+            <button onclick="caricaTuttoIlGruppo('tecnologia')">💻 Tecnologia</button>
         </nav>
-        <div id="lista-pulsanti-siti" style="margin-top: 10px;"></div>
     </section>
 
-    <main id="risultati-feed" aria-live="polite">
-        <h2 id="titolo-sezione-feed">Seleziona una fonte</h2>
+    <main id="main-content" aria-live="polite">
+        <h2 id="titolo-sezione">Scegli una categoria</h2>
         <div id="container-notizie"></div>
     </main>
 
-    <section aria-labelledby="titolo-chat" style="background: #eef6ff; padding: 20px;">
-        <h2 id="titolo-chat">Chiedi all'Assistente</h2>
-        <button id="toggle-web" aria-pressed="false" onclick="toggleWeb()">🌐 Ricerca Web: OFF</button>
-        <br><br>
-        <label for="input-chat">Cosa vuoi sapere? (es: "Cosa è successo oggi in Italia?")</label><br>
-        <input type="text" id="input-chat" style="width: 80%;">
-        <button onclick="inviaAILavorato()">Invia Domanda</button>
+    <section class="chat-area">
+        <h2>Chiedi all'Assistente</h2>
+        <button id="toggle-web" onclick="toggleWeb()">🌐 Ricerca Web: OFF</button><br>
+        <input type="text" id="input-chat" placeholder="Chiedi sui feed carichi...">
+        <button onclick="inviaAI()" style="background: #005a87; color: white;">Invia</button>
         <div id="risposta-ai" aria-live="assertive" style="margin-top: 20px;"></div>
     </section>
 
     <script>
         let webAttiva = false;
         let contestoFeed = "";
-        const SEARCH_ID = "43edcb6f7c3854b7a"; // Il tuo ID motore di ricerca
-
-        // Gestione Chiave API locale
-        function salvaChiave() {
-            const key = document.getElementById('api-key-input').value;
-            localStorage.setItem('google_api_key', key);
-            document.getElementById('stato-chiave').innerText = "Chiave salvata correttamente!";
-        }
-
-        window.onload = () => {
-            const savedKey = localStorage.getItem('google_api_key');
-            if (savedKey) {
-                document.getElementById('api-key-input').value = savedKey;
-                document.getElementById('stato-chiave').innerText = "Chiave caricata dal browser.";
-            }
-        };
+        const SEARCH_ID = "43edcb6f7c3854b7a";
 
         const feedMap = {
-            news: [{t:"ANSA", u:"https://www.ansa.it/sito/ansait_rss.xml"}, {t:"Il Post", u:"https://www.ilpost.it/feed/"}],
-            roma: [{t:"RomaToday", u:"https://www.romatoday.it/rss"}, {t:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}],
-            ciechi: [{t:"Reddit Blind", u:"https://www.reddit.com/r/Blind.rss"}, {t:"AppleVis", u:"https://www.applevis.com/blog/feed"}],
-            psicologia: [{t:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}]
+            ciechi: [
+                {n: "Reddit - r/Blind", u: "https://www.reddit.com/r/Blind.rss"},
+                {n: "Reddit - r/Blind (Ricerca)", u: "https://www.reddit.com/r/Blind/search/.rss?q=android+OR+talkback+OR+screenreader&restrict_sr=1&sort=new"},
+                {n: "Reddit - r/AudioGames", u: "https://www.reddit.com/r/AudioGames.rss"},
+                {n: "Reddit - r/AssistiveTechnology", u: "https://www.reddit.com/r/AssistiveTechnology.rss"},
+                {n: "Blind Android Users (Podcast)", u: "https://blindandroidusers.com/feed/podcast/"},
+                {n: "Blind Android Users (Gruppo)", u: "https://groups.io/g/blindandroidusers/rss"},
+                {n: "NVDA-it (Gruppo)", u: "https://groups.io/g/nvda-it/rss"},
+                {n: "NVDA (Gruppo)", u: "https://nvda.groups.io/g/nvda/rss"},
+                {n: "NVDA Addons (Gruppo)", u: "https://nvda-addons.groups.io/g/nvda-addons/rss"},
+                {n: "JFW (Gruppo)", u: "https://jfw.groups.io/g/main/rss"},
+                {n: "AppleVis: Blogs", u: "https://www.applevis.com/blog/feed"},
+                {n: "AppleVis: Podcast", u: "https://www.applevis.com/podcasts/feed"}
+            ],
+            news: [
+                {n: "ANSA", u: "https://www.ansa.it/sito/ansait_rss.xml"},
+                {n: "la Repubblica", u: "https://www.repubblica.it/rss/cronaca/rss2.0.xml"},
+                {n: "La Stampa", u: "https://www.lastampa.it/rss/copertina.xml"},
+                {n: "Il Sole 24 Ore", u: "https://www.ilsole24ore.com/rss/italia.xml"},
+                {n: "Il Messaggero", u: "https://www.ilmessaggero.it/rss.php"},
+                {n: "Sky TG24 Home", u: "https://tg24.sky.it/rss/tg24.xml"},
+                {n: "Sky TG24 Cronaca", u: "https://tg24.sky.it/rss/tg24_cronaca.xml"},
+                {n: "Sky TG24 Mondo", u: "https://tg24.sky.it/rss/tg24_mondo.xml"}
+            ],
+            approfondimenti: [
+                {n: "Internazionale", u: "https://www.internazionale.it/sitemaps/rss.xml"},
+                {n: "Open", u: "https://www.open.online/feed/"},
+                {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
+                {n: "Scomodo", u: "https://scomodo.org/feed/"},
+                {n: "The Vision", u: "https://thevision.com/feed/"},
+                {n: "Rivista Studio", u: "https://www.rivistastudio.com/feed/"},
+                {n: "Bufale.net", u: "https://www.bufale.net/feed/"},
+                {n: "Formiche", u: "https://formiche.net/feed/"},
+                {n: "Pandora Rivista", u: "https://www.pandorarivista.it/feed/"},
+                {n: "Domani", u: "https://www.editorialedomani.it/rss"},
+                {n: "L'Indipendente", u: "https://www.lindipendente.online/feed/"},
+                {n: "2duerighe", u: "https://www.2duerighe.com/feed/"},
+                {n: "Giano News", u: "https://www.giano.news/feed/"},
+                {n: "Il Post", u: "https://www.ilpost.it/feed/"},
+                {n: "Wired - Diritti", u: "https://www.wired.it/feed/rss/internet/diritti/"},
+                {n: "Il Tascabile", u: "https://www.iltascabile.com/feed/"},
+                {n: "All Music Italia", u: "https://www.allmusicitalia.it/feed"},
+                {n: "Digital-News", u: "https://www.digital-news.it/rss.php"},
+                {n: "FM-World", u: "https://www.fm-world.it/feed/"}
+            ],
+            psicologia: [
+                {n: "State of Mind", u: "https://www.stateofmind.it/category/articoli/feed/"},
+                {n: "Mind - Le Scienze", u: "https://www.lescienze.it/topics/mente-e-cervello/rss"},
+                {n: "Doppiozero - Psiche", u: "https://www.doppiozero.com/tag/psicologia/feed/"},
+                {n: "La Mente è Meravigliosa", u: "https://lamenteemeravigliosa.it/feed/"},
+                {n: "Psypedia", u: "https://www.psypedia.it/feed/"},
+                {n: "Psiche - Santagostino", u: "https://psiche.santagostino.it/feed/"},
+                {n: "Psychology Today", u: "https://www.psychologytoday.com/intl/front/feed"},
+                {n: "PsyPost", u: "https://www.psypost.org/feed"}
+            ],
+            roma: [
+                {n: "Corriere - Roma", u: "https://www.corriere.it/dynamic-feed/rss/section/roma.xml"},
+                {n: "RomaToday", u: "https://www.romatoday.it/rss"},
+                {n: "ANSA - Lazio", u: "https://www.ansa.it/lazio/notizie/lazio_rss.xml"},
+                {n: "TGR Lazio", u: "https://www.rainews.it/tgr/lazio/rss/tutti"},
+                {n: "Tiburno TV", u: "https://tiburno.tv/feed/"},
+                {n: "Canale Dieci", u: "https://canaledieci.it/feed/"},
+                {n: "Il Faro Online", u: "https://www.ilfaroonline.it/feed/"},
+                {n: "Radio Roma", u: "https://www.radioroma.it/feed/"},
+                {n: "Roma Sociale", u: "https://romasociale.com/feed/"},
+                {n: "ATAC", u: "https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}
+            ],
+            tecnologia: [
+                {n: "Reddit - r/technews", u: "https://www.reddit.com/r/technews.rss"},
+                {n: "Google News - AI", u: "https://news.google.com/rss/search?q=intelligenza+artificiale+OR+Gemini+OR+ChatGPT&hl=it&gl=IT&ceid=IT:it"},
+                {n: "Sky TG24 - Tecnologia", u: "https://tg24.sky.it/rss/tg24_tecnologia.xml"}
+            ]
         };
 
-        function caricaGruppo(cat) {
-            const area = document.getElementById('lista-pulsanti-siti');
-            area.innerHTML = "";
-            feedMap[cat].forEach(f => {
-                area.innerHTML += `<button onclick="leggiFeed('${f.u}')">${f.t}</button>`;
-            });
-        }
-
-        async function leggiFeed(url) {
+        async function caricaTuttoIlGruppo(cat) {
             const cont = document.getElementById('container-notizie');
-            document.getElementById('titolo-sezione-feed').innerText = "Lettura in corso...";
+            const tit = document.getElementById('titolo-sezione');
+            tit.innerText = `🔄 Aggiornamento in corso: ${cat}...`;
             cont.innerHTML = "";
-            try {
-                const res = await fetch(`/api/fetch-rss?url=${encodeURIComponent(url)}`);
-                const xml = await res.text();
-                const items = new DOMParser().parseFromString(xml, "text/xml").querySelectorAll("item");
-                contestoFeed = "";
-                items.forEach(item => {
-                    const t = item.querySelector("title").textContent;
-                    const l = item.querySelector("link").textContent;
-                    contestoFeed += `Titolo: ${t}. `;
-                    cont.innerHTML += `<article><h3>${t}</h3><a href="${l}" target="_blank">Apri Articolo</a></article>`;
-                });
-                document.getElementById('titolo-sezione-feed').innerText = `Trovati ${items.length} articoli. Naviga con H.`;
-            } catch (e) { document.getElementById('titolo-sezione-feed').innerText = "Errore feed."; }
+            contestoFeed = "";
+
+            const promesse = feedMap[cat].map(sito => 
+                fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`)
+                .then(r => r.text())
+                .then(xml => {
+                    const items = new DOMParser().parseFromString(xml, "text/xml").querySelectorAll("item");
+                    items.forEach(item => {
+                        const t = item.querySelector("title")?.textContent || "Senza titolo";
+                        const l = item.querySelector("link")?.textContent || "#";
+                        contestoFeed += `[${sito.n}] ${t}. `;
+                        cont.innerHTML += `
+                            <article>
+                                <span class="fonte-tag">${sito.n}</span>
+                                <h3>${t}</h3>
+                                <a href="${l}" target="_blank">Leggi l'articolo completo</a>
+                            </article>`;
+                    });
+                }).catch(() => console.log("Errore su: " + sito.n))
+            );
+            await Promise.all(promesse);
+            tit.innerText = `✅ Categoria ${cat} caricata. Usa il tasto H per navigare.`;
         }
 
-        function toggleWeb() {
-            webAttiva = !webAttiva;
-            const btn = document.getElementById('toggle-web');
-            btn.innerText = webAttiva ? "🌐 Ricerca Web: ATTIVA" : "🌐 Ricerca Web: OFF";
-            btn.setAttribute('aria-pressed', webAttiva);
-        }
-
-        async function inviaAILavorato() {
+        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); document.getElementById('stato-chiave').innerText = "Chiave salvata!"; }
+        function toggleWeb() { webAttiva = !webAttiva; document.getElementById('toggle-web').innerText = webAttiva ? "🌐 Ricerca Web: ATTIVA" : "🌐 Ricerca Web: OFF"; }
+        
+        async function inviaAI() {
             const key = localStorage.getItem('google_api_key');
-            if (!key) { alert("Inserisci prima la chiave API in alto!"); return; }
-
             const msg = document.getElementById('input-chat').value;
             const resBox = document.getElementById('risposta-ai');
-            resBox.innerHTML = "<h3>L'IA sta elaborando la ricerca...</h3>";
-
-            const payload = {
-                messaggio: msg,
-                contesto: contestoFeed,
-                webAttiva: webAttiva,
-                apiKey: key,
-                searchId: SEARCH_ID
-            };
-
-            const response = await fetch('/api/chat', {
+            resBox.innerHTML = "<h3>L'Assistente sta analizzando i tuoi feed...</h3>";
+            const res = await fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({messaggio: msg, contesto: contestoFeed, webAttiva, apiKey: key, searchId: SEARCH_ID})
             });
-
-            const data = await response.json();
-            resBox.innerHTML = `<h3>Risposta dell'Assistente:</h3><div>${data.risposta}</div>`;
+            const data = await res.json();
+            resBox.innerHTML = `<h3>Risposta:</h3><div>${data.risposta}</div>`;
         }
     </script>
 </body>
