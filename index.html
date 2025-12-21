@@ -92,7 +92,7 @@
             ],
             approfondimenti: [
                 {n: "Il Post", u: "https://www.ilpost.it/feed/"},
-                {n: "Internazionale", u: "https://www.internazionale.it/sitemaps/rss.xml"},
+                {n: "Internazionale", u: "https://www.internazionale.it/rss/all"},
                 {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
                 {n: "Open", u: "https://www.open.online/feed/"},
                 {n: "Scomodo", u: "https://scomodo.org/feed/"},
@@ -143,7 +143,7 @@
         function formattaData(dr) {
             const d = new Date(dr);
             const adesso = new Date();
-            if (isNaN(d.getTime())) return "Data non disponibile";
+            if (isNaN(d.getTime())) return "Data recente";
             const ora = d.toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
             return (adesso.toDateString() === d.toDateString()) ? `Oggi, ${ora}` : `${d.toLocaleString('it-IT', { day: 'numeric', month: 'long' })}, ${ora}`;
         }
@@ -176,14 +176,21 @@
                     const r = await fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`);
                     const xml = await r.text();
                     const xmlDoc = new DOMParser().parseFromString(xml, "text/xml");
-                    Array.from(xmlDoc.querySelectorAll("item")).forEach(item => {
-                        const dr = item.querySelector("pubDate")?.textContent || "";
+                    
+                    // Supporto sia per RSS (<item>) che per Atom (<entry>)
+                    const items = Array.from(xmlDoc.querySelectorAll("item, entry"));
+                    
+                    items.forEach(item => {
+                        const titolo = item.querySelector("title")?.textContent || "Senza titolo";
+                        const link = item.querySelector("link")?.getAttribute("href") || item.querySelector("link")?.textContent || "#";
+                        const dataGrezza = item.querySelector("pubDate, published, updated")?.textContent || "";
+                        
                         tutteLeNotizie.push({ 
                             fonte: sito.n, 
-                            titolo: item.querySelector("title")?.textContent || "Senza titolo", 
-                            data: formattaData(dr), 
-                            ts: new Date(dr).getTime() || 0, 
-                            link: item.querySelector("link")?.textContent || "#" 
+                            titolo: titolo, 
+                            data: formattaData(dataGrezza), 
+                            ts: new Date(dataGrezza).getTime() || 0, 
+                            link: link 
                         });
                     });
                 } catch (e) { console.error("Errore feed:", sito.n); }
