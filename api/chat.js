@@ -3,28 +3,32 @@ export default async function handler(req, res) {
   const { messaggio, contesto, apiKey } = req.body;
 
   try {
-    // MODELLO: Gemini 3 Pro (release Dicembre 2025)
-    const model = "gemini-3-pro-latest"; 
+    const model = "gemini-3-pro-preview"; 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: `ISTRUZIONI DI SISTEMA: Sei l'assistente di una ricercatrice. Scrivi un TG lungo, narrativo e discorsivo. Non usare elenchi puntati. Non usare mai emoji. Usa solo intestazioni H3 per dividere i capitoli. Quando trovi la stessa notizia su più fonti, confrontale e crea un unico paragrafo dettagliato.\n\nCONTESTO NOTIZIE CARICATE:\n${contesto}\n\nRICHIESTA UTENTE: ${messaggio}` }]
+          parts: [{ text: `Sei un cronista meticoloso che scrive per una ricercatrice. 
+          IL TUO COMPITO: Scrivere un TG scritto lunghissimo e narrativo che includa TUTTE le notizie presenti nel contesto.
+
+          REGOLE TASSATIVE:
+          1. NON ESCLUDERE NULLA: Ogni notizia, anche se ha una sola fonte o sembra minore, deve essere riportata.
+          2. NARRATIVA INTEGRATA: Se più fonti parlano dello stesso fatto, unisci i dettagli. Se una notizia è isolata, presentala come un aggiornamento specifico.
+          3. STRUTTURA: Usa intestazioni H3 per separare i grandi temi, ma all'interno dei capitoli scrivi paragrafi lunghi e discorsivi.
+          4. ACCESSIBILITÀ: Niente elenchi, niente emoji. Usa un linguaggio chiaro e scorrevole per la sintesi vocale.
+          5. PRIORITÀ: Inizia con le news più recenti, ma assicurati di arrivare fino all'ultima della lista.
+
+          CONTESTO NOTIZIE:\n${contesto}\n\nRICHIESTA: ${messaggio}` }]
         }],
-        generationConfig: { 
-          temperature: 0.7,
-          maxOutputTokens: 3500 
-        }
+        generationConfig: { temperature: 0.6, maxOutputTokens: 4000 }
       })
     });
 
     const data = await response.json();
-    if (!data.candidates) throw new Error("Risposta API non valida");
-    
     const rispostaText = data.candidates[0].content.parts[0].text;
     res.status(200).json({ risposta: rispostaText });
   } catch (error) {
-    res.status(500).json({ risposta: "Errore nel collegamento con Gemini 3 Pro." });
+    res.status(500).json({ risposta: "Errore tecnico con Gemini 3 Pro." });
   }
 }
