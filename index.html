@@ -6,29 +6,29 @@
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
         button { padding: 12px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
-        .btn-web { background: #eef6ff; border: 2px solid #005a87; }
-        .btn-web.attiva { background: #005a87; color: white; }
+        .btn-filtro { background: #eef6ff; border: 2px solid #005a87; font-size: 1rem; color: #005a87; }
+        .chat-box { background: #fff; padding: 25px; border: 4px solid #005a87; border-radius: 8px; margin-top: 40px; }
         input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; margin: 5px 0; }
         section { border-bottom: 2px solid #eee; padding: 20px 0; }
         article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 15px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .info-tag { font-weight: bold; color: #d93025; font-size: 1rem; display: block; }
-        .chat-box { background: #fff; padding: 20px; border: 3px solid #005a87; border-radius: 8px; margin-top: 30px; }
+        .info-tag { font-weight: bold; color: #d93025; font-size: 1.1rem; display: block; margin-bottom: 5px; }
     </style>
 </head>
 <body>
-    <header><h1>Edicola Valentina</h1></header>
+    <header><h1>La mia Edicola: Valentina</h1></header>
 
     <section aria-labelledby="h-config">
         <h2 id="h-config">1. Configurazione</h2>
         <input type="password" id="api-key-input" placeholder="Chiave API Gemini">
-        <button onclick="salvaChiave()">Salva Chiave</button>
+        <button onclick="salvaChiave()">Salva</button>
+        <p id="stato-chiave" aria-live="polite"></p>
     </section>
 
     <section aria-labelledby="h-email">
         <h2 id="h-email">2. Analisi Email Thunderbird</h2>
-        <label for="input-file">Carica file .txt esportato:</label><br>
+        <label for="input-file">Carica file .txt delle email:</label><br>
         <input type="file" id="input-file" accept=".txt">
-        <button onclick="caricaEmail()">Carica e Analizza Email</button>
+        <button onclick="caricaEmail()">Carica e Analizza</button>
     </section>
 
     <section aria-labelledby="h-feed">
@@ -39,8 +39,12 @@
             <button onclick="caricaGruppo('approfondimenti')">Approfondimenti</button>
             <button onclick="caricaGruppo('psicologia')">Psicologia</button>
             <button onclick="caricaGruppo('roma')">Roma</button>
-            <button onclick="caricaGruppo('tecnologia')">Tecnologia</button>
         </nav>
+    </section>
+
+    <section id="sezione-filtri" style="display:none;" aria-labelledby="h-filtri">
+        <h3 id="h-filtri">Filtra per sito specifico:</h3>
+        <div id="container-filtri"></div>
     </section>
 
     <main id="main-content" aria-live="polite">
@@ -48,14 +52,12 @@
         <div id="container-notizie"></div>
     </main>
 
-    <section class="chat-box">
-        <h2>4. Chiedi all'Assistente Gemini 3</h2>
-        <button id="btn-web-toggle" class="btn-web" onclick="toggleWeb()">Ricerca Online: OFF</button><br><br>
-        
-        <label for="input-chat">Fai una domanda sui feed o su internet:</label><br>
-        <input type="text" id="input-chat" style="width: 80%;" placeholder="Es: Cosa dicono le email? o Cerca news su sciopero">
+    <section class="chat-box" aria-labelledby="h-chat">
+        <h2 id="h-chat">4. Chiedi all'Assistente Gemini 3 Pro</h2>
+        <button id="btn-web-toggle" onclick="toggleWeb()">Ricerca Web Online: OFF</button><br><br>
+        <label for="input-chat">Domanda sui feed o su internet:</label><br>
+        <input type="text" id="input-chat" style="width: 80%;">
         <button onclick="inviaDomanda()">Invia</button>
-
         <div id="risposta-ai" aria-live="assertive" style="margin-top: 20px;"></div>
     </section>
 
@@ -65,12 +67,33 @@
         let webAttiva = false;
 
         const feedMap = {
-            ciechi: [{n:"Reddit Blind", u:"https://www.reddit.com/r/Blind.rss"}, {n:"NVDA-it", u:"https://groups.io/g/nvda-it/rss"}, {n:"AppleVis", u:"https://www.applevis.com/blog/feed"}],
-            news: [{n:"ANSA", u:"https://www.ansa.it/sito/ansait_rss.xml"}, {n:"Sole 24 Ore", u:"https://www.ilsole24ore.com/rss/italia.xml"}],
-            approfondimenti: [{n:"Il Post", u:"https://www.ilpost.it/feed/"}, {n:"Valigia Blu", u:"https://www.valigiablu.it/feed/"}],
-            psicologia: [{n:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}, {n:"Mind Le Scienze", u:"https://www.lescienze.it/topics/mente-e-cervello/rss"}],
-            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}],
-            tecnologia: [{n:"Reddit tech", u:"https://www.reddit.com/r/technews.rss"}, {n:"Google AI", u:"https://news.google.com/rss/search?q=AI&hl=it&gl=IT&ceid=IT:it"}]
+            ciechi: [
+                {n: "Reddit Blind", u: "https://www.reddit.com/r/Blind.rss"},
+                {n: "NVDA-it", u: "https://groups.io/g/nvda-it/rss"},
+                {n: "AppleVis", u: "https://www.applevis.com/blog/feed"}
+            ],
+            news: [
+                {n: "ANSA", u: "https://www.ansa.it/sito/ansait_rss.xml"},
+                {n: "Sole 24 Ore", u: "https://www.ilsole24ore.com/rss/italia.xml"},
+                {n: "la Repubblica", u: "https://www.repubblica.it/rss/cronaca/rss2.0.xml"}
+            ],
+            approfondimenti: [
+                {n: "Il Post", u: "https://www.ilpost.it/feed/"},
+                {n: "Internazionale", u: "https://www.internazionale.it/rss/all"},
+                {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
+                {n: "Open", u: "https://www.open.online/feed/"},
+                {n: "Il Tascabile", u: "https://www.iltascabile.com/feed/"}
+            ],
+            psicologia: [
+                {n: "State of Mind", u: "https://www.stateofmind.it/category/articoli/feed/"},
+                {n: "Mind Le Scienze", u: "https://www.lescienze.it/topics/mente-e-cervello/rss"},
+                {n: "Doppiozero Psiche", u: "https://www.doppiozero.com/tag/psicologia/feed/"}
+            ],
+            roma: [
+                {n: "Corriere Roma", u: "https://www.corriere.it/dynamic-feed/rss/section/roma.xml"},
+                {n: "RomaToday", u: "https://www.romatoday.it/rss"},
+                {n: "ATAC", u: "https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}
+            ]
         };
 
         function formattaData(dr) {
@@ -82,55 +105,88 @@
 
         async function caricaGruppo(cat) {
             tutteLeNotizie = [];
-            const cont = document.getElementById('container-notizie');
-            document.getElementById('titolo-sezione').innerText = `Caricamento ${cat}...`;
+            const contNotizie = document.getElementById('container-notizie');
+            const contFiltri = document.getElementById('container-filtri');
+            const sezFiltri = document.getElementById('sezione-filtri');
             
-            const promesse = feedMap[cat].map(sito => 
-                fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`)
-                .then(r => r.text())
-                .then(xml => {
+            document.getElementById('titolo-sezione').innerText = `Caricamento categoria ${cat}...`;
+            contNotizie.innerHTML = "";
+            contFiltri.innerHTML = "";
+            sezFiltri.style.display = "block";
+
+            // Creiamo subito i pulsanti filtro per ogni sito del gruppo
+            const btnAll = document.createElement('button');
+            btnAll.innerText = "Mostra TUTTI i siti";
+            btnAll.className = "btn-filtro";
+            btnAll.onclick = () => renderizza();
+            contFiltri.appendChild(btnAll);
+
+            feedMap[cat].forEach(sito => {
+                const btn = document.createElement('button');
+                btn.className = "btn-filtro";
+                btn.innerText = sito.n;
+                btn.onclick = () => renderizza(sito.n);
+                contFiltri.appendChild(btn);
+            });
+
+            // Scarichiamo i dati
+            for (const sito of feedMap[cat]) {
+                try {
+                    const r = await fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`);
+                    const xml = await r.text();
                     const xmlDoc = new DOMParser().parseFromString(xml, "text/xml");
                     Array.from(xmlDoc.querySelectorAll("item")).forEach(item => {
                         const dr = item.querySelector("pubDate")?.textContent || "";
-                        tutteLeNotizie.push({ fonte: sito.n, titolo: item.querySelector("title")?.textContent || "", data: formattaData(dr), ts: new Date(dr).getTime() });
+                        tutteLeNotizie.push({ 
+                            fonte: sito.n, 
+                            titolo: item.querySelector("title")?.textContent || "No titolo", 
+                            data: formattaData(dr), 
+                            ts: new Date(dr).getTime() || 0,
+                            link: item.querySelector("link")?.textContent || "#"
+                        });
                     });
-                })
-            );
-            await Promise.all(promesse);
+                } catch (e) { console.log("Errore caricamento: " + sito.n); }
+            }
+
             tutteLeNotizie.sort((a,b) => b.ts - a.ts);
-            
+            renderizza();
+            document.getElementById('titolo-sezione').innerText = `Categoria ${cat} pronta.`;
+        }
+
+        function renderizza(filtro = null) {
+            const cont = document.getElementById('container-notizie');
             cont.innerHTML = "";
             contestoCorrente = "";
-            tutteLeNotizie.forEach(n => {
+            const newsMostrate = filtro ? tutteLeNotizie.filter(n => n.fonte === filtro) : tutteLeNotizie;
+            
+            newsMostrate.forEach(n => {
                 contestoCorrente += `[${n.fonte}] ${n.titolo}. `;
-                cont.innerHTML += `<article><span class="info-tag">${n.fonte}, ${n.data}</span><h3>${n.titolo}</h3></article>`;
+                cont.innerHTML += `<article><span class="info-tag">${n.fonte}, ${n.data}</span><h3>${n.titolo}</h3><a href="${n.link}" target="_blank">Apri notizia</a></article>`;
             });
-            document.getElementById('titolo-sezione').innerText = `Feed ${cat} pronto.`;
+            window.scrollTo(0, document.getElementById('main-content').offsetTop);
         }
 
         function caricaEmail() {
             const file = document.getElementById('input-file').files[0];
-            if (!file) { alert("Seleziona il file .txt!"); return; }
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 contestoCorrente = e.target.result;
-                document.getElementById('risposta-ai').innerHTML = "<h3>Email caricate. Ora puoi fare domande nella chat qui sotto.</h3>";
+                document.getElementById('risposta-ai').innerHTML = "<h3>Email caricate. Chiedi pure a Gemini.</h3>";
             };
             reader.readAsText(file);
         }
 
         function toggleWeb() {
             webAttiva = !webAttiva;
-            const btn = document.getElementById('btn-web-toggle');
-            btn.innerText = webAttiva ? "Ricerca Online: ATTIVA" : "Ricerca Online: OFF";
-            btn.className = webAttiva ? "btn-web attiva" : "btn-web";
+            document.getElementById('btn-web-toggle').innerText = webAttiva ? "Ricerca Web Online: ATTIVA" : "Ricerca Web Online: OFF";
         }
 
         async function inviaDomanda() {
             const key = localStorage.getItem('google_api_key');
             const msg = document.getElementById('input-chat').value;
             const resBox = document.getElementById('risposta-ai');
-            resBox.innerHTML = "<h3>Gemini 3 Pro sta elaborando...</h3>";
+            resBox.innerHTML = "<h3>Analisi in corso...</h3>";
 
             const res = await fetch('/api/chat', {
                 method: 'POST',
