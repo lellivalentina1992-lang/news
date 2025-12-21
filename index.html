@@ -91,8 +91,6 @@
                 {n: "Sky TG24 Mondo", u: "https://tg24.sky.it/rss/tg24_mondo.xml"}
             ],
             approfondimenti: [
-                {n: "Il Post", u: "https://www.ilpost.it/feed/"},
-                {n: "Internazionale", u: "https://www.internazionale.it/rss/all"},
                 {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
                 {n: "Open", u: "https://www.open.online/feed/"},
                 {n: "Scomodo", u: "https://scomodo.org/feed/"},
@@ -108,7 +106,6 @@
                 {n: "All Music Italia", u: "https://www.allmusicitalia.it/feed"},
                 {n: "Digital-News", u: "https://www.digital-news.it/rss.php"},
                 {n: "FM-World", u: "https://www.fm-world.it/feed/"},
-                {n: "Wired Diritti", u: "https://www.wired.it/feed/rss/internet/diritti/"},
                 {n: "Il Tascabile", u: "https://www.iltascabile.com/feed/"}
             ],
             psicologia: [
@@ -176,8 +173,6 @@
                     const r = await fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`);
                     const xml = await r.text();
                     const xmlDoc = new DOMParser().parseFromString(xml, "text/xml");
-                    
-                    // Supporto sia per RSS (<item>) che per Atom (<entry>)
                     const items = Array.from(xmlDoc.querySelectorAll("item, entry"));
                     
                     items.forEach(item => {
@@ -252,7 +247,7 @@
                 const data = await res.json();
                 resBox.innerHTML = `<div>${data.risposta}</div>`;
             } catch (e) {
-                resBox.innerHTML = "<div>Errore durante la comunicazione con l'assistente. Assicurati che il backend sia attivo.</div>";
+                resBox.innerHTML = "<div>Errore durante la comunicazione con l'assistente.</div>";
             }
         }
 
