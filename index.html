@@ -2,52 +2,46 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Edicola Valentina</title>
+    <title>Edicola Valentina - Edizioni Speciali</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
-        button { padding: 12px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
-        .btn-super-tg { background: #d93025; color: white; border: none; width: 100%; height: 70px; font-size: 1.3rem; margin-bottom: 20px; }
-        input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; }
-        .chat-area { background: #eef6ff; padding: 25px; border: 2px solid #005a87; border-radius: 8px; margin-top: 40px; }
-        article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 20px; background: #fff; }
+        button { padding: 15px; margin: 10px 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; width: 100%; text-align: left; }
+        .btn-tg-1 { border-left: 15px solid #005a87; background: #f0f7ff; }
+        .btn-tg-2 { border-left: 15px solid #28a745; background: #f0fff4; }
+        .btn-tg-3 { border-left: 15px solid #6f42c1; background: #f5f0ff; }
+        input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; width: 80px; }
+        .chat-area { background: #fff; padding: 25px; border: 3px solid #005a87; border-radius: 8px; margin-top: 40px; }
+        article { border-bottom: 1px solid #eee; padding: 10px 0; }
     </style>
 </head>
 <body>
-    <header><h1>La mia Edicola: Valentina</h1></header>
+    <header><h1>Edicola Valentina: Scegli l'Edizione del TG</h1></header>
 
     <section>
-        <h2>Configurazione</h2>
-        <input type="password" id="api-key-input" placeholder="Incolla Chiave API">
-        <button onclick="salvaChiave()">Salva Chiave</button>
+        <h2>Configurazione e Ore</h2>
+        <label for="input-ore">Analizza le ultime (ore):</label>
+        <input type="number" id="input-ore" value="24">
+        <p>Dopo aver scelto le ore, premi uno dei tre pulsanti qui sotto per generare il racconto.</p>
     </section>
 
-    <section>
-        <h2>Generazione TG Globale</h2>
-        <label for="input-ore">Quante ore vuoi analizzare? </label>
-        <input type="number" id="input-ore" style="width: 70px;" value="24">
-        <button class="btn-super-tg" onclick="generaSuperTG()">Genera Super TG Globale (Tutte le categorie)</button>
+    <section aria-label="Edizioni del TG">
+        <button class="btn-tg-1" onclick="generaTGSettoriale(['ciechi', 'psicologia', 'tecnologia'], 'RICERCA E VITA QUOTIDIANA')">
+            1. Genera TG Ricerca e Vita (Ciechi, Psicologia, Tech)
+        </button>
+        
+        <button class="btn-tg-2" onclick="generaTGSettoriale(['news', 'roma'], 'ATTUALITÀ E TERRITORIO')">
+            2. Genera TG Cronaca e Roma (News e Territorio)
+        </button>
+
+        <button class="btn-tg-3" onclick="generaTGSettoriale(['approfondimenti'], 'ANALISI E CULTURA')">
+            3. Genera TG Approfondimenti (Analisi e Long-form)
+        </button>
     </section>
 
-    <section>
-        <h2>Esplora Categorie</h2>
-        <nav>
-            <button onclick="caricaGruppo('ciechi')">Ciechi</button>
-            <button onclick="caricaGruppo('news')">News</button>
-            <button onclick="caricaGruppo('approfondimenti')">Approfondimenti</button>
-            <button onclick="caricaGruppo('psicologia')">Psicologia</button>
-            <button onclick="caricaGruppo('roma')">Roma</button>
-        </nav>
-    </section>
-
-    <main id="main-content" aria-live="polite">
-        <h2 id="titolo-sezione">Le tue notizie compariranno qui</h2>
-        <div id="container-notizie"></div>
-    </main>
-
-    <section id="risposta-ai-container" class="chat-area" style="display:none;">
-        <h2 id="titolo-tg">Il tuo TG Personalizzato</h2>
+    <main id="risposta-ai-container" class="chat-area" style="display:none;">
+        <h2 id="titolo-tg-corrente">Il tuo TG</h2>
         <div id="risposta-ai" aria-live="assertive"></div>
-    </section>
+    </main>
 
     <script>
         let tutteLeNotizie = [];
@@ -56,11 +50,16 @@
             news: [{n:"ANSA", u:"https://www.ansa.it/sito/ansait_rss.xml"}, {n:"Sole 24 Ore", u:"https://www.ilsole24ore.com/rss/italia.xml"}],
             approfondimenti: [{n:"Il Post", u:"https://www.ilpost.it/feed/"}, {n:"Valigia Blu", u:"https://www.valigiablu.it/feed/"}, {n:"Il Tascabile", u:"https://www.iltascabile.com/feed/"}],
             psicologia: [{n:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}, {n:"Mind Le Scienze", u:"https://www.lescienze.it/topics/mente-e-cervello/rss"}, {n:"Doppiozero Psiche", u:"https://www.doppiozero.com/tag/psicologia/feed/"}],
-            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}, {n:"Tiburno TV", u:"https://tiburno.tv/feed/"}]
+            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}, {n:"Tiburno TV", u:"https://tiburno.tv/feed/"}],
+            tecnologia: [{n:"Reddit tech", u:"https://www.reddit.com/r/technews.rss"}, {n:"Google AI", u:"https://news.google.com/rss/search?q=AI&hl=it&gl=IT&ceid=IT:it"}]
         };
 
-        async function scaricaFeed(listaSiti) {
-            const promesse = listaSiti.map(sito => 
+        async function scaricaFeed(listaCategorie) {
+            tutteLeNotizie = [];
+            let sitiDaScaricare = [];
+            listaCategorie.forEach(cat => sitiDaScaricare = sitiDaScaricare.concat(feedMap[cat]));
+
+            const promesse = sitiDaScaricare.map(sito => 
                 fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`)
                 .then(r => r.text())
                 .then(xml => {
@@ -69,57 +68,43 @@
                         const dRaw = item.querySelector("pubDate")?.textContent || "";
                         tutteLeNotizie.push({ 
                             fonte: sito.n, titolo: item.querySelector("title")?.textContent || "No titolo", 
-                            timestamp: new Date(dRaw).getTime() || 0, dataTesto: dRaw
+                            timestamp: new Date(dRaw).getTime() || 0
                         });
                     });
-                })
+                }).catch(() => console.log("Errore su: " + sito.n))
             );
             await Promise.all(promesse);
         }
 
-        async function caricaGruppo(cat) {
-            tutteLeNotizie = [];
-            document.getElementById('titolo-sezione').innerText = `Caricamento ${cat}...`;
-            await scaricaFeed(feedMap[cat]);
-            renderizza();
-        }
-
-        function renderizza() {
-            const cont = document.getElementById('container-notizie');
-            cont.innerHTML = "";
-            tutteLeNotizie.sort((a,b) => b.timestamp - a.timestamp).forEach(n => {
-                cont.innerHTML += `<article><strong>${n.fonte}</strong><h3>${n.titolo}</h3></article>`;
-            });
-        }
-
-        async function generaSuperTG() {
-            tutteLeNotizie = [];
+        async function generaTGSettoriale(categorie, titoloTG) {
             const resBox = document.getElementById('risposta-ai');
             const ore = document.getElementById('input-ore').value;
             document.getElementById('risposta-ai-container').style.display = "block";
-            resBox.innerHTML = "<h3>Recupero di tutti i feed in corso...</h3>";
-
-            let tutti = [];
-            Object.keys(feedMap).forEach(k => tutti = tutti.concat(feedMap[k]));
-            await scaricaFeed(tutti);
+            document.getElementById('titolo-tg-corrente').innerText = "TG: " + titoloTG;
+            
+            resBox.innerHTML = `<h3>Caricamento delle fonti per ${titoloTG}...</h3>`;
+            await scaricaFeed(categorie);
 
             const limite = Date.now() - (ore * 60 * 60 * 1000);
             const filtrate = tutteLeNotizie.filter(n => n.timestamp > limite);
             
-            resBox.innerHTML = "<h3>Gemini 3 Pro sta scrivendo il Super TG Esaustivo...</h3>";
+            if (filtrate.length === 0) {
+                resBox.innerHTML = "<h3>Nessuna notizia trovata in questa categoria nelle ultime " + ore + " ore.</h3>";
+                return;
+            }
+
+            resBox.innerHTML = "<h3>Gemini 3 Pro sta scrivendo l'edizione: " + titoloTG + ". Attendi...</h3>";
             let contesto = filtrate.map(n => `[${n.fonte}] ${n.titolo}`).join(". ");
             
             const key = localStorage.getItem('google_api_key');
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messaggio: `Fai il TG di tutte queste news delle ultime ${ore} ore.`, contesto: contesto, apiKey: key })
+                body: JSON.stringify({ messaggio: `Fai un TG esaustivo per la sezione ${titoloTG}. Includi OGNI dettaglio.`, contesto: contesto, apiKey: key })
             });
             const data = await response.json();
             resBox.innerHTML = `<div>${data.risposta}</div>`;
         }
-
-        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); }
     </script>
 </body>
 </html>
