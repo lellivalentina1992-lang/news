@@ -2,30 +2,32 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>La mia Edicola: Valentina</title>
+    <title>Edicola Valentina</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
         button { padding: 12px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
-        .btn-filtro { background: #e9ecef; border-color: #666; font-size: 0.95rem; }
-        input { padding: 12px; font-size: 1.1rem; margin: 10px 0; border: 2px solid #767676; border-radius: 4px; width: 85%; }
+        .btn-tg { background: #005a87; color: white; border: none; width: 100%; margin-top: 10px; min-height: 60px; font-size: 1.2rem; }
+        input { padding: 12px; font-size: 1.1rem; margin: 10px 0; border: 2px solid #767676; border-radius: 4px; }
+        .input-ore { width: 60px; text-align: center; }
         section { border-bottom: 3px solid #eee; padding: 20px 0; }
         article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 25px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .info-tag { font-weight: bold; color: #d93025; font-size: 0.9rem; display: block; margin-bottom: 5px; }
+        .info-tag { font-weight: bold; color: #d93025; font-size: 1.1rem; display: block; margin-bottom: 5px; }
         .chat-area { background: #eef6ff; padding: 25px; border: 2px solid #005a87; border-radius: 8px; margin-top: 40px; }
     </style>
 </head>
 <body>
-    <header><h1>La mia Edicola: Valentina</h1></header>
+    <header><h1>Edicola Valentina</h1></header>
 
     <section>
         <h2>Configurazione</h2>
-        <input type="password" id="api-key-input" placeholder="Incolla API Key per la Chat">
+        <label for="api-key-input">Inserisci Chiave API:</label><br>
+        <input type="password" id="api-key-input" style="width: 80%;">
         <button onclick="salvaChiave()">Salva Chiave</button>
         <p id="stato-chiave" aria-live="polite"></p>
     </section>
 
-    <section aria-labelledby="titolo-feed">
-        <h2 id="titolo-feed">I miei Feed (Scegli una categoria)</h2>
+    <section>
+        <h2>Categorie Feed</h2>
         <nav>
             <button onclick="caricaTuttoIlGruppo('ciechi')">Ciechi</button>
             <button onclick="caricaTuttoIlGruppo('news')">News Nazionali</button>
@@ -36,141 +38,75 @@
         </nav>
     </section>
 
-    <section id="sezione-filtri" style="display:none;" aria-labelledby="titolo-filtri">
-        <h3 id="titolo-filtri">Filtra per sito specifico</h3>
+    <section id="sezione-filtri" style="display:none;">
+        <h3>Filtra per sito specifico</h3>
         <div id="container-filtri"></div>
     </section>
 
     <main id="main-content" aria-live="polite">
-        <h2 id="titolo-sezione">Nessuna categoria selezionata</h2>
+        <h2 id="titolo-sezione">Scegli una categoria</h2>
         <div id="container-notizie"></div>
     </main>
 
     <section class="chat-area">
-        <h2>Chiedi all'Assistente</h2>
-        <button id="toggle-web" onclick="toggleWeb()">Ricerca Web: OFF</button><br>
-        <input type="text" id="input-chat" placeholder="Chiedi sui feed carichi...">
-        <button onclick="inviaAI()">Invia Domanda</button>
+        <h2>Assistente Gemini 3 Pro</h2>
+        
+        <div style="margin-bottom: 20px;">
+            <label for="input-ore">Quante ore vuoi analizzare per il TG? </label>
+            <input type="number" id="input-ore" class="input-ore" value="24" min="1" max="168">
+            <span>ore</span>
+        </div>
+
+        <button class="btn-tg" onclick="generaTG()">Genera TG Personalizzato (Testo Lungo)</button>
+        
+        <div style="margin-top: 20px;">
+            <label for="input-chat">Fai una domanda specifica:</label><br>
+            <input type="text" id="input-chat" style="width: 80%;" placeholder="Es: Riassumi solo le news su ATAC">
+            <button onclick="inviaAI()">Invia</button>
+        </div>
+
         <div id="risposta-ai" aria-live="assertive" style="margin-top: 20px;"></div>
     </section>
 
     <script>
-        let webAttiva = false;
-        let contestoFeed = "";
-        let tutteLeNotizie = []; 
-        const SEARCH_ID = "43edcb6f7c3854b7a";
+        let tutteLeNotizie = [];
+        let contestoFeedPerAI = "";
 
         const feedMap = {
-            ciechi: [
-                {n: "Reddit - r/Blind", u: "https://www.reddit.com/r/Blind.rss"},
-                {n: "Reddit - r/Blind (Ricerca)", u: "https://www.reddit.com/r/Blind/search/.rss?q=android+OR+talkback+OR+screenreader&restrict_sr=1&sort=new"},
-                {n: "Reddit - r/AudioGames", u: "https://www.reddit.com/r/AudioGames.rss"},
-                {n: "Reddit - r/AssistiveTechnology", u: "https://www.reddit.com/r/AssistiveTechnology.rss"},
-                {n: "Blind Android Users (Podcast)", u: "https://blindandroidusers.com/feed/podcast/"},
-                {n: "Blind Android Users (Gruppo)", u: "https://groups.io/g/blindandroidusers/rss"},
-                {n: "NVDA-it (Gruppo)", u: "https://groups.io/g/nvda-it/rss"},
-                {n: "NVDA (Gruppo)", u: "https://nvda.groups.io/g/nvda/rss"},
-                {n: "NVDA Addons (Gruppo)", u: "https://nvda-addons.groups.io/g/nvda-addons/rss"},
-                {n: "JFW (Gruppo)", u: "https://jfw.groups.io/g/main/rss"},
-                {n: "AppleVis: Blogs", u: "https://www.applevis.com/blog/feed"},
-                {n: "AppleVis: Podcast", u: "https://www.applevis.com/podcasts/feed"}
-            ],
-            news: [
-                {n: "ANSA", u: "https://www.ansa.it/sito/ansait_rss.xml"},
-                {n: "la Repubblica", u: "https://www.repubblica.it/rss/cronaca/rss2.0.xml"},
-                {n: "La Stampa", u: "https://www.lastampa.it/rss/copertina.xml"},
-                {n: "Il Sole 24 Ore", u: "https://www.ilsole24ore.com/rss/italia.xml"},
-                {n: "Il Messaggero", u: "https://www.ilmessaggero.it/rss.php"},
-                {n: "Sky TG24 Home", u: "https://tg24.sky.it/rss/tg24.xml"},
-                {n: "Sky TG24 Cronaca", u: "https://tg24.sky.it/rss/tg24_cronaca.xml"},
-                {n: "Sky TG24 Mondo", u: "https://tg24.sky.it/rss/tg24_mondo.xml"}
-            ],
-            approfondimenti: [
-                {n: "Internazionale", u: "https://www.internazionale.it/sitemaps/rss.xml"},
-                {n: "Open", u: "https://www.open.online/feed/"},
-                {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
-                {n: "Scomodo", u: "https://scomodo.org/feed/"},
-                {n: "The Vision", u: "https://thevision.com/feed/"},
-                {n: "Rivista Studio", u: "https://www.rivistastudio.com/feed/"},
-                {n: "Bufale.net", u: "https://www.bufale.net/feed/"},
-                {n: "Formiche", u: "https://formiche.net/feed/"},
-                {n: "Pandora Rivista", u: "https://www.pandorarivista.it/feed/"},
-                {n: "Domani", u: "https://www.editorialedomani.it/rss"},
-                {n: "L'Indipendente", u: "https://www.lindipendente.online/feed/"},
-                {n: "2duerighe", u: "https://www.2duerighe.com/feed/"},
-                {n: "Giano News", u: "https://www.giano.news/feed/"},
-                {n: "Il Post", u: "https://www.ilpost.it/feed/"},
-                {n: "Wired - Diritti", u: "https://www.wired.it/feed/rss/internet/diritti/"},
-                {n: "Il Tascabile", u: "https://www.iltascabile.com/feed/"},
-                {n: "All Music Italia", u: "https://www.allmusicitalia.it/feed"},
-                {n: "Digital-News", u: "https://www.digital-news.it/rss.php"},
-                {n: "FM-World", u: "https://www.fm-world.it/feed/"}
-            ],
-            psicologia: [
-                {n: "State of Mind", u: "https://www.stateofmind.it/category/articoli/feed/"},
-                {n: "Mind - Le Scienze", u: "https://www.lescienze.it/topics/mente-e-cervello/rss"},
-                {n: "Doppiozero - Psiche", u: "https://www.doppiozero.com/tag/psicologia/feed/"},
-                {n: "La Mente è Meravigliosa", u: "https://lamenteemeravigliosa.it/feed/"},
-                {n: "Psypedia", u: "https://www.psypedia.it/feed/"},
-                {n: "Psiche - Santagostino", u: "https://psiche.santagostino.it/feed/"},
-                {n: "Psychology Today", u: "https://www.psychologytoday.com/intl/front/feed"},
-                {n: "PsyPost", u: "https://www.psypost.org/feed"}
-            ],
-            roma: [
-                {n: "Corriere Roma", u: "https://www.corriere.it/dynamic-feed/rss/section/roma.xml"},
-                {n: "RomaToday", u: "https://www.romatoday.it/rss"},
-                {n: "ANSA - Lazio", u: "https://www.ansa.it/lazio/notizie/lazio_rss.xml"},
-                {n: "TGR Lazio", u: "https://www.rainews.it/tgr/lazio/rss/tutti"},
-                {n: "Tiburno TV", u: "https://tiburno.tv/feed/"},
-                {n: "Canale Dieci", u: "https://canaledieci.it/feed/"},
-                {n: "Il Faro Online", u: "https://www.ilfaroonline.it/feed/"},
-                {n: "Radio Roma", u: "https://www.radioroma.it/feed/"},
-                {n: "Roma Sociale", u: "https://romasociale.com/feed/"},
-                {n: "ATAC", u: "https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}
-            ],
-            tecnologia: [
-                {n: "Reddit - r/technews", u: "https://www.reddit.com/r/technews.rss"},
-                {n: "Google News - AI", u: "https://news.google.com/rss/search?q=intelligenza+artificiale+OR+Gemini+OR+ChatGPT&hl=it&gl=IT&ceid=IT:it"},
-                {n: "Sky TG24 - Tecnologia", u: "https://tg24.sky.it/rss/tg24_tecnologia.xml"}
-            ]
+            ciechi: [{n:"Reddit Blind", u:"https://www.reddit.com/r/Blind.rss"}, {n:"NVDA-it", u:"https://groups.io/g/nvda-it/rss"}, {n:"AppleVis Blogs", u:"https://www.applevis.com/blog/feed"}],
+            news: [{n:"ANSA", u:"https://www.ansa.it/sito/ansait_rss.xml"}, {n:"Sole 24 Ore", u:"https://www.ilsole24ore.com/rss/italia.xml"}, {n:"la Repubblica", u:"https://www.repubblica.it/rss/cronaca/rss2.0.xml"}],
+            approfondimenti: [{n:"Il Post", u:"https://www.ilpost.it/feed/"}, {n:"Valigia Blu", u:"https://www.valigiablu.it/feed/"}, {n:"Il Tascabile", u:"https://www.iltascabile.com/feed/"}, {n:"Wired Diritti", u:"https://www.wired.it/feed/rss/internet/diritti/"}],
+            psicologia: [{n:"State of Mind", u:"https://www.stateofmind.it/category/articoli/feed/"}, {n:"Mind Le Scienze", u:"https://www.lescienze.it/topics/mente-e-cervello/rss"}, {n:"Doppiozero Psiche", u:"https://www.doppiozero.com/tag/psicologia/feed/"}],
+            roma: [{n:"Corriere Roma", u:"https://www.corriere.it/dynamic-feed/rss/section/roma.xml"}, {n:"RomaToday", u:"https://www.romatoday.it/rss"}, {n:"ATAC", u:"https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}, {n:"Tiburno TV", u:"https://tiburno.tv/feed/"}, {n:"Canale Dieci", u:"https://canaledieci.it/feed/"}, {n:"TGR Lazio", u:"https://www.rainews.it/tgr/lazio/rss/tutti"}],
+            tecnologia: [{n:"Reddit technews", u:"https://www.reddit.com/r/technews.rss"}, {n:"Google News AI", u:"https://news.google.com/rss/search?q=AI&hl=it&gl=IT&ceid=IT:it"}]
         };
 
-        function ottieniTimestamp(stringaData) {
-            if (!stringaData) return 0;
-            const d = new Date(stringaData);
-            return isNaN(d.getTime()) ? 0 : d.getTime();
-        }
-
-        function formattaData(stringaData) {
+        function formattaDataVeloce(stringaData) {
             if (!stringaData) return "Data non disponibile";
             const d = new Date(stringaData);
             if (isNaN(d.getTime())) return "Data recente";
-            return d.toLocaleString('it-IT', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+            const adesso = new Date();
+            const ora = d.toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            if (adesso.toDateString() === d.toDateString()) return `Oggi, ${ora}`;
+            return `${d.toLocaleString('it-IT', { day: 'numeric', month: 'long' })}, ${ora}`;
         }
 
         async function caricaTuttoIlGruppo(cat) {
             const contNotizie = document.getElementById('container-notizie');
-            const titSezione = document.getElementById('titolo-sezione');
             const contFiltri = document.getElementById('container-filtri');
-            const sezFiltri = document.getElementById('sezione-filtri');
-
-            titSezione.innerText = `Aggiornamento in corso per ${cat}...`;
-            contNotizie.innerHTML = "";
-            contFiltri.innerHTML = "";
-            sezFiltri.style.display = "block";
+            document.getElementById('titolo-sezione').innerText = `Caricamento: ${cat}...`;
+            contNotizie.innerHTML = ""; contFiltri.innerHTML = "";
+            document.getElementById('sezione-filtri').style.display = "block";
             tutteLeNotizie = [];
-            contestoFeed = "";
 
             const btnAll = document.createElement('button');
-            btnAll.innerText = "Mostra tutti i siti (Ordina per data)";
-            btnAll.className = "btn-filtro";
+            btnAll.innerText = "Mostra tutti";
             btnAll.onclick = () => renderizzaNotizie();
             contFiltri.appendChild(btnAll);
 
             feedMap[cat].forEach(sito => {
                 const btn = document.createElement('button');
                 btn.innerText = sito.n;
-                btn.className = "btn-filtro";
                 btn.onclick = () => renderizzaNotizie(sito.n);
                 contFiltri.appendChild(btn);
             });
@@ -185,61 +121,69 @@
                         const t = item.querySelector("title")?.textContent || "Senza titolo";
                         const l = item.querySelector("link")?.textContent || "#";
                         const dRaw = item.querySelector("pubDate")?.textContent || item.querySelector("date")?.textContent || "";
-                        
                         tutteLeNotizie.push({ 
-                            fonte: sito.n, 
-                            titolo: t, 
-                            link: l, 
-                            dataTesto: formattaData(dRaw),
-                            timestamp: ottieniTimestamp(dRaw)
+                            fonte: sito.n, titolo: t, link: l, 
+                            dataTesto: formattaDataVeloce(dRaw),
+                            timestamp: new Date(dRaw).getTime() || 0
                         });
                     });
-                }).catch(() => console.log("Errore su: " + sito.n))
+                }).catch(() => console.log("Errore: " + sito.n))
             );
 
             await Promise.all(promesse);
-            
-            // ORDINAMENTO CRONOLOGICO (Dalla più recente alla più vecchia)
             tutteLeNotizie.sort((a, b) => b.timestamp - a.timestamp);
-            
             renderizzaNotizie();
-            titSezione.innerText = `Categoria ${cat}: trovate ${tutteLeNotizie.length} notizie ordinate per data.`;
+            document.getElementById('titolo-sezione').innerText = `Categoria ${cat} pronta.`;
         }
 
         function renderizzaNotizie(filtro = null) {
             const cont = document.getElementById('container-notizie');
             cont.innerHTML = "";
-            contestoFeed = "";
             const notizieDaMostrare = filtro ? tutteLeNotizie.filter(n => n.fonte === filtro) : tutteLeNotizie;
-            
             notizieDaMostrare.forEach(n => {
-                contestoFeed += `[${n.fonte}] ${n.titolo}. `;
-                cont.innerHTML += `
-                    <article>
-                        <span class="info-tag">Fonte: ${n.fonte} - Pubblicato il: ${n.dataTesto}</span>
-                        <h3>${n.titolo}</h3>
-                        <a href="${n.link}" target="_blank">Leggi notizia completa</a>
-                    </article>`;
+                cont.innerHTML += `<article><span class="info-tag">${n.fonte}, ${n.dataTesto}</span><h3>${n.titolo}</h3><a href="${n.link}" target="_blank">Apri</a></article>`;
             });
-            window.scrollTo(0, document.getElementById('main-content').offsetTop);
         }
 
-        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); document.getElementById('stato-chiave').innerText = "Chiave salvata!"; }
-        function toggleWeb() { webAttiva = !webAttiva; document.getElementById('toggle-web').innerText = webAttiva ? "Ricerca Web: ATTIVA" : "Ricerca Web: OFF"; }
-        
-        async function inviaAI() {
-            const key = localStorage.getItem('google_api_key');
-            const msg = document.getElementById('input-chat').value;
+        async function generaTG() {
+            if (tutteLeNotizie.length === 0) { alert("Carica prima una categoria!"); return; }
             const resBox = document.getElementById('risposta-ai');
-            resBox.innerHTML = "<h3>L'Assistente sta analizzando le notizie più recenti...</h3>";
-            const res = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({messaggio: msg, contesto: contestoFeed, webAttiva, apiKey: key, searchId: SEARCH_ID})
-            });
-            const data = await res.json();
-            resBox.innerHTML = `<h3>Risposta:</h3><div>${data.risposta}</div>`;
+            const oreScelte = parseInt(document.getElementById('input-ore').value) || 24;
+            
+            resBox.innerHTML = `<h3>Gemini 3 Pro analizza le ultime ${oreScelte} ore...</h3>`;
+            
+            const limiteTempo = Date.now() - (oreScelte * 60 * 60 * 1000);
+            const notizieFiltrate = tutteLeNotizie.filter(n => n.timestamp > limiteTempo);
+
+            if (notizieFiltrate.length === 0) {
+                resBox.innerHTML = `<h3>Nessuna notizia trovata nelle ultime ${oreScelte} ore. Prova ad aumentare il tempo.</h3>`;
+                return;
+            }
+
+            let contestoTesto = notizieFiltrate.map(n => `[${n.fonte}, ${n.dataTesto}] ${n.titolo}`).join(". ");
+            const promptSpeciale = `Genera un TG lungo e narrativo basato sulle news caricate. Sii molto discorsiva.`;
+            
+            await inviaAI(promptSpeciale, contestoTesto);
         }
+
+        async function inviaAI(istruzione = null, contestoOverride = null) {
+            const key = localStorage.getItem('google_api_key');
+            const msg = istruzione || document.getElementById('input-chat').value;
+            const contestoDati = contestoOverride || tutteLeNotizie.map(n => `[${n.fonte}] ${n.titolo}`).join(". ");
+            const resBox = document.getElementById('risposta-ai');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messaggio: msg, contesto: contestoDati, apiKey: key })
+                });
+                const data = await response.json();
+                resBox.innerHTML = `<h3>Il tuo TG Personalizzato:</h3><div>${data.risposta}</div>`;
+            } catch (e) { resBox.innerHTML = "<h3>Errore API. Verifica la chiave.</h3>"; }
+        }
+
+        function salvaChiave() { localStorage.setItem('google_api_key', document.getElementById('api-key-input').value); alert("Chiave salvata!"); }
     </script>
 </body>
 </html>
