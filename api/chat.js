@@ -9,19 +9,9 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: `Sei un cronista meticoloso che scrive per una ricercatrice. 
-          IL TUO COMPITO: Scrivere un TG scritto lunghissimo e narrativo che includa TUTTE le notizie presenti nel contesto.
-
-          REGOLE TASSATIVE:
-          1. NON ESCLUDERE NULLA: Ogni notizia, anche se ha una sola fonte o sembra minore, deve essere riportata.
-          2. NARRATIVA INTEGRATA: Se più fonti parlano dello stesso fatto, unisci i dettagli. Se una notizia è isolata, presentala come un aggiornamento specifico.
-          3. STRUTTURA: Usa intestazioni H3 per separare i grandi temi, ma all'interno dei capitoli scrivi paragrafi lunghi e discorsivi.
-          4. ACCESSIBILITÀ: Niente elenchi, niente emoji. Usa un linguaggio chiaro e scorrevole per la sintesi vocale.
-          5. PRIORITÀ: Inizia con le news più recenti, ma assicurati di arrivare fino all'ultima della lista.
-
-          CONTESTO NOTIZIE:\n${contesto}\n\nRICHIESTA: ${messaggio}` }]
+          parts: [{ text: `ISTRUZIONI: Sei un assistente editoriale. Scrivi un resoconto narrativo, lungo e dettagliato. Non usare elenchi. Non usare emoji. Usa solo H3 per i titoli. Analizza tutto ciò che trovi nel contesto, che siano notizie o email.\n\nCONTESTO:\n${contesto}\n\nRICHIESTA: ${messaggio}` }]
         }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 4000 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4000 }
       })
     });
 
@@ -29,6 +19,6 @@ export default async function handler(req, res) {
     const rispostaText = data.candidates[0].content.parts[0].text;
     res.status(200).json({ risposta: rispostaText });
   } catch (error) {
-    res.status(500).json({ risposta: "Errore tecnico con Gemini 3 Pro." });
+    res.status(500).json({ risposta: "Errore di connessione con Gemini 3 Pro." });
   }
 }
