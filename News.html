@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Edicola Valentina - Versione Totale</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; max-width: 1000px; margin: auto; background: #fdfdfd; color: #1a1a1a; }
+        button { padding: 12px; margin: 5px; font-size: 1.1rem; cursor: pointer; border: 2px solid #333; border-radius: 8px; background: #fff; font-weight: bold; }
+        .btn-filtro { background: #eef6ff; border: 2px solid #005a87; color: #005a87; font-size: 1rem; }
+        section { border-bottom: 2px solid #eee; padding: 20px 0; }
+        article { border-left: 8px solid #005a87; padding: 15px; margin-bottom: 15px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .info-tag { font-weight: bold; color: #d93025; font-size: 1.1rem; display: block; margin-bottom: 5px; }
+        .chat-box { background: #fff; padding: 25px; border: 4px solid #005a87; border-radius: 8px; margin-top: 40px; }
+        input { padding: 12px; font-size: 1.1rem; border: 2px solid #767676; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <header><h1>La mia Edicola: Valentina (Versione Totale)</h1></header>
+
+    <section aria-labelledby="config-title">
+        <h2 id="config-title">1. Configurazione</h2>
+        <input type="password" id="api-key-input" placeholder="Chiave API Gemini" aria-label="Inserisci la tua Chiave API Gemini">
+        <button onclick="salvaChiave()">Salva Chiave</button>
+    </section>
+
+    <section aria-labelledby="email-title">
+        <h2 id="email-title">2. Analisi Email Thunderbird</h2>
+        <label for="input-file">Carica file export email (.txt o .html):</label><br>
+        <input type="file" id="input-file" accept=".txt,.html">
+        <button onclick="caricaEmail()">Carica e Analizza Email</button>
+    </section>
+
+    <section aria-labelledby="cat-title">
+        <h2 id="cat-title">3. Categorie</h2>
+        <nav aria-label="Menu categorie">
+            <button onclick="caricaGruppo('ciechi')">Ciechi</button>
+            <button onclick="caricaGruppo('news')">News Nazionali</button>
+            <button onclick="caricaGruppo('approfondimenti')">Approfondimenti</button>
+            <button onclick="caricaGruppo('psicologia')">Psicologia</button>
+            <button onclick="caricaGruppo('roma')">Roma</button>
+            <button onclick="caricaGruppo('tecnologia')">Tecnologia</button>
+        </nav>
+    </section>
+
+    <section id="sezione-filtri" style="display:none;" aria-labelledby="filter-title">
+        <h3 id="filter-title">Filtra per sito specifico:</h3>
+        <div id="container-filtri" role="group" aria-label="Filtri per testata"></div>
+    </section>
+
+    <main id="main-content">
+        <h2 id="titolo-sezione" aria-live="polite">Nessuna categoria selezionata</h2>
+        <div id="container-notizie" role="feed" aria-busy="false"></div>
+    </main>
+
+    <section class="chat-box" aria-labelledby="chat-title">
+        <h2 id="chat-title">4. Chiedi all'Assistente Gemini</h2>
+        <button id="btn-web-toggle" onclick="toggleWeb()" aria-live="polite">Ricerca Web: OFF</button><br><br>
+        <input type="text" id="input-chat" style="width: 80%;" placeholder="Fai una domanda..." aria-label="Campo di testo per domande all'assistente">
+        <button onclick="inviaDomanda()">Invia</button>
+        <div id="risposta-ai" aria-live="assertive" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;"></div>
+    </section>
+
+    <script>
+        let tutteLeNotizie = [];
+        let contestoCorrente = "";
+        let webAttiva = false;
+
+        const feedMap = {
+            ciechi: [
+                {n: "Reddit Blind", u: "https://www.reddit.com/r/Blind.rss"},
+                {n: "Reddit Blind Ricerca", u: "https://www.reddit.com/r/Blind/search/.rss?q=android+OR+talkback+OR+screenreader+OR+%22lettore+di+schermo%22&restrict_sr=1&sort=new"},
+                {n: "AudioGames", u: "https://www.reddit.com/r/AudioGames.rss"},
+                {n: "Assistive Tech", u: "https://www.reddit.com/r/AssistiveTechnology.rss"},
+                {n: "Blind Android Podcast", u: "https://blindandroidusers.com/feed/podcast/"},
+                {n: "Blind Android Gruppo", u: "https://groups.io/g/blindandroidusers/rss"},
+                {n: "NVDA-it", u: "https://groups.io/g/nvda-it/rss"},
+                {n: "NVDA Global", u: "https://nvda.groups.io/g/nvda/rss"},
+                {n: "NVDA Addons", u: "https://nvda-addons.groups.io/g/nvda-addons/rss"},
+                {n: "JFW News", u: "https://jfw.groups.io/g/main/rss"},
+                {n: "AppleVis Blog", u: "https://www.applevis.com/blog/feed"},
+                {n: "AppleVis Podcast", u: "https://www.applevis.com/podcasts/feed"}
+            ],
+            news: [
+                {n: "ANSA", u: "https://www.ansa.it/sito/ansait_rss.xml"},
+                {n: "Repubblica", u: "https://www.repubblica.it/rss/cronaca/rss2.0.xml"},
+                {n: "La Stampa", u: "https://www.lastampa.it/rss/copertina.xml"},
+                {n: "Sole 24 Ore", u: "https://www.ilsole24ore.com/rss/italia.xml"},
+                {n: "Messaggero", u: "https://www.ilmessaggero.it/rss.php"},
+                {n: "Sky TG24 Home", u: "https://tg24.sky.it/rss/tg24.xml"},
+                {n: "Sky TG24 Cronaca", u: "https://tg24.sky.it/rss/tg24_cronaca.xml"},
+                {n: "Sky TG24 Mondo", u: "https://tg24.sky.it/rss/tg24_mondo.xml"}
+            ],
+            approfondimenti: [
+                {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
+                {n: "Open", u: "https://www.open.online/feed/"},
+                {n: "Scomodo", u: "https://scomodo.org/feed/"},
+                {n: "The Vision", u: "https://thevision.com/feed/"},
+                {n: "Rivista Studio", u: "https://www.rivistastudio.com/feed/"},
+                {n: "Bufale.net", u: "https://www.bufale.net/feed/"},
+                {n: "Formiche", u: "https://formiche.net/feed/"},
+                {n: "Pandora Rivista", u: "https://www.pandorarivista.it/feed/"},
+                {n: "Domani", u: "https://www.editorialedomani.it/rss"},
+                {n: "L'Indipendente", u: "https://www.lindipendente.online/feed/"},
+                {n: "2duerighe", u: "https://www.2duerighe.com/feed/"},
+                {n: "Giano News", u: "https://www.giano.news/feed/"},
+                {n: "All Music Italia", u: "https://www.allmusicitalia.it/feed"},
+                {n: "Digital-News", u: "https://www.digital-news.it/rss.php"},
+                {n: "FM-World", u: "https://www.fm-world.it/feed/"},
+                {n: "Il Tascabile", u: "https://www.iltascabile.com/feed/"}
+            ],
+            psicologia: [
+                {n: "State of Mind", u: "https://www.stateofmind.it/category/articoli/feed/"},
+                {n: "La Mente è Meravigliosa", u: "https://lamenteemeravigliosa.it/feed/"},
+                {n: "Psypedia", u: "https://www.psypedia.it/feed/"},
+                {n: "Psiche Santagostino", u: "https://psiche.santagostino.it/feed/"},
+                {n: "Psychology Today", u: "https://www.psychologytoday.com/intl/front/feed"},
+                {n: "PsyPost", u: "https://www.psypost.org/feed"},
+                {n: "Mind Le Scienze", u: "https://www.lescienze.it/topics/mente-e-cervello/rss"},
+                {n: "Doppiozero Psiche", u: "https://www.doppiozero.com/tag/psicologia/feed/"}
+            ],
+            roma: [
+                {n: "Corriere Roma", u: "https://www.corriere.it/dynamic-feed/rss/section/roma.xml"},
+                {n: "RomaToday", u: "https://www.romatoday.it/rss"},
+                {n: "ANSA Lazio", u: "https://www.ansa.it/lazio/notizie/lazio_rss.xml"},
+                {n: "TGR Lazio", u: "https://www.rainews.it/tgr/lazio/rss/tutti"},
+                {n: "Tiburno TV", u: "https://tiburno.tv/feed/"},
+                {n: "Canale Dieci", u: "https://canaledieci.it/feed/"},
+                {n: "Il Faro Online", u: "https://www.ilfaroonline.it/feed/"},
+                {n: "Radio Roma", u: "https://www.radioroma.it/feed/"},
+                {n: "Roma Sociale", u: "https://romasociale.com/feed/"},
+                {n: "ATAC Info", u: "https://www.atac.roma.it/feeds/lo-stato-del-servizio-in-tempo-reale"}
+            ],
+            tecnologia: [
+                {n: "Reddit tech", u: "https://www.reddit.com/r/technews.rss"},
+                {n: "Google AI News", u: "https://news.google.com/rss/search?q=intelligenza+artificiale+OR+Gemini+OR+ChatGPT+OR+OpenAI+OR+Claude+OR+AI&hl=it&gl=IT&ceid=IT:it"},
+                {n: "Sky TG24 Tech", u: "https://tg24.sky.it/rss/tg24_tecnologia.xml"}
+            ]
+        };
+
+        function formattaData(dr) {
+            const d = new Date(dr);
+            const adesso = new Date();
+            if (isNaN(d.getTime())) return "Data recente";
+            const ora = d.toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            return (adesso.toDateString() === d.toDateString()) ? `Oggi, ${ora}` : `${d.toLocaleString('it-IT', { day: 'numeric', month: 'long' })}, ${ora}`;
+        }
+
+        async function caricaGruppo(cat) {
+            tutteLeNotizie = [];
+            const cont = document.getElementById('container-notizie');
+            const contFiltri = document.getElementById('container-filtri');
+            const tit = document.getElementById('titolo-sezione');
+            
+            tit.innerText = `Caricamento categoria ${cat}...`;
+            cont.innerHTML = ""; contFiltri.innerHTML = "";
+            document.getElementById('sezione-filtri').style.display = "block";
+            cont.setAttribute('aria-busy', 'true');
+
+            const btnAll = document.createElement('button');
+            btnAll.innerText = "Mostra TUTTI"; btnAll.className = "btn-filtro";
+            btnAll.onclick = () => renderizza();
+            contFiltri.appendChild(btnAll);
+
+            feedMap[cat].forEach(sito => {
+                const btn = document.createElement('button');
+                btn.className = "btn-filtro"; btn.innerText = sito.n;
+                btn.onclick = () => renderizza(sito.n);
+                contFiltri.appendChild(btn);
+            });
+
+            for (const sito of feedMap[cat]) {
+                try {
+                    const r = await fetch(`/api/fetch-rss?url=${encodeURIComponent(sito.u)}`);
+                    const xml = await r.text();
+                    const xmlDoc = new DOMParser().parseFromString(xml, "text/xml");
+                    const items = Array.from(xmlDoc.querySelectorAll("item, entry"));
+                    
+                    items.forEach(item => {
+                        const titolo = item.querySelector("title")?.textContent || "Senza titolo";
+                        const link = item.querySelector("link")?.getAttribute("href") || item.querySelector("link")?.textContent || "#";
+                        const dataGrezza = item.querySelector("pubDate, published, updated")?.textContent || "";
+                        
+                        tutteLeNotizie.push({ 
+                            fonte: sito.n, 
+                            titolo: titolo, 
+                            data: formattaData(dataGrezza), 
+                            ts: new Date(dataGrezza).getTime() || 0, 
+                            link: link 
+                        });
+                    });
+                } catch (e) { console.error("Errore feed:", sito.n); }
+            }
+            
+            tutteLeNotizie.sort((a,b) => b.ts - a.ts);
+            renderizza();
+            cont.setAttribute('aria-busy', 'false');
+            tit.innerText = `${cat.toUpperCase()} pronta (${tutteLeNotizie.length} notizie).`;
+        }
+
+        function renderizza(filtro = null) {
+            const cont = document.getElementById('container-notizie');
+            cont.innerHTML = ""; contestoCorrente = "";
+            const news = filtro ? tutteLeNotizie.filter(n => n.fonte === filtro) : tutteLeNotizie;
+            
+            if (news.length === 0) {
+                cont.innerHTML = "<p>Nessun contenuto trovato per questo filtro.</p>";
+                return;
+            }
+
+            news.forEach(n => {
+                contestoCorrente += `[Fonte: ${n.fonte}] Titolo: ${n.titolo}. `;
+                const art = document.createElement('article');
+                art.innerHTML = `<span class="info-tag">${n.fonte}, ${n.data}</span><h3>${n.titolo}</h3><a href="${n.link}" target="_blank" aria-label="Leggi l'articolo: ${n.titolo}">Apri articolo</a>`;
+                cont.appendChild(art);
+            });
+        }
+
+        function caricaEmail() {
+            const file = document.getElementById('input-file').files[0];
+            if (!file) { alert("Seleziona prima un file!"); return; }
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                contestoCorrente = e.target.result; 
+                document.getElementById('risposta-ai').innerHTML = "<h3>Email caricate con successo nel contesto.</h3>"; 
+            };
+            reader.readAsText(file);
+        }
+
+        function toggleWeb() { 
+            webAttiva = !webAttiva; 
+            document.getElementById('btn-web-toggle').innerText = webAttiva ? "Ricerca Web: ATTIVA" : "Ricerca Web: OFF"; 
+        }
+
+        async function inviaDomanda() {
+            const key = localStorage.getItem('google_api_key');
+            if (!key) { alert("Configura prima la chiave API!"); return; }
+            const msg = document.getElementById('input-chat').value;
+            const resBox = document.getElementById('risposta-ai');
+            resBox.innerHTML = "<h3>Analisi in corso...</h3>";
+            
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messaggio: msg, contesto: contestoCorrente, apiKey: key, webAttiva: webAttiva })
+                });
+                const data = await res.json();
+                resBox.innerHTML = `<div>${data.risposta}</div>`;
+            } catch (e) {
+                resBox.innerHTML = "<div>Errore durante la comunicazione con l'assistente.</div>";
+            }
+        }
+
+        function salvaChiave() { 
+            const k = document.getElementById('api-key-input').value;
+            if (k) { localStorage.setItem('google_api_key', k); alert("Chiave salvata correttamente!"); }
+        }
+    </script>
+</body>
+</html>
