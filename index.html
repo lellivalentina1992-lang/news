@@ -16,22 +16,21 @@
 </head>
 <body>
     <header><h1>La mia Edicola: Valentina (Versione Totale)</h1></header>
+<section aria-labelledby="email-title">
+        <h2 id="email-title">1. Fonti da caricare</h2>
 
-    <section aria-labelledby="config-title">
-        <h2 id="config-title">1. Configurazione</h2>
+        <h3>Export email Thunderbird</h3>
+        <label for="input-file">Carica file export email (.txt o .html):</label><br>
+        <input type="file" id="input-file" accept=".txt,.html">
+        <button onclick="caricaEmail()">Carica e Analizza Email</button>
+
+        <h3>Chiave API Gemini</h3>
         <input type="password" id="api-key-input" placeholder="Chiave API Gemini" aria-label="Inserisci la tua Chiave API Gemini">
         <button onclick="salvaChiave()">Salva Chiave</button>
     </section>
 
-    <section aria-labelledby="email-title">
-        <h2 id="email-title">2. Analisi Email Thunderbird</h2>
-        <label for="input-file">Carica file export email (.txt):</label><br>
-        <input type="file" id="input-file" accept=".txt">
-        <button onclick="caricaEmail()">Carica e Analizza Email</button>
-    </section>
-
     <section aria-labelledby="cat-title">
-        <h2 id="cat-title">3. Categorie</h2>
+        <h2 id="cat-title">2. Categorie</h2>
         <nav aria-label="Menu categorie">
             <button onclick="caricaGruppo('ciechi')">Ciechi</button>
             <button onclick="caricaGruppo('news')">News Nazionali</button>
@@ -53,7 +52,7 @@
     </main>
 
     <section class="chat-box" aria-labelledby="chat-title">
-        <h2 id="chat-title">4. Chiedi all'Assistente Gemini</h2>
+        <h2 id="chat-title">3. Chiedi all'Assistente Gemini</h2>
         <button id="btn-web-toggle" onclick="toggleWeb()" aria-live="polite">Ricerca Web: OFF</button><br><br>
         <input type="text" id="input-chat" style="width: 80%;" placeholder="Fai una domanda..." aria-label="Campo di testo per domande all'assistente">
         <button onclick="inviaDomanda()">Invia</button>
@@ -88,9 +87,13 @@
                 {n: "Messaggero", u: "https://www.ilmessaggero.it/rss.php"},
                 {n: "Sky TG24 Home", u: "https://tg24.sky.it/rss/tg24.xml"},
                 {n: "Sky TG24 Cronaca", u: "https://tg24.sky.it/rss/tg24_cronaca.xml"},
-                {n: "Sky TG24 Mondo", u: "https://tg24.sky.it/rss/tg24_mondo.xml"}
+                {n: "Sky TG24 Mondo", u: "https://tg24.sky.it/rss/tg24_mondo.xml"},
+                {n: "Il Post (RSSHub da Telegram)", u: "https://rsshub.app/telegram/channel/ilpost_official"},
+                {n: "Il Post (feed alternativo - Draghetti)", u: "https://rss.draghetti.it/ilpost.xml"}
             ],
             approfondimenti: [
+                {n: "Il Post (RSSHub da Telegram)", u: "https://rsshub.app/telegram/channel/ilpost_official"},
+                {n: "Il Post (feed alternativo - Draghetti)", u: "https://rss.draghetti.it/ilpost.xml"},
                 {n: "Valigia Blu", u: "https://www.valigiablu.it/feed/"},
                 {n: "Open", u: "https://www.open.online/feed/"},
                 {n: "Scomodo", u: "https://scomodo.org/feed/"},
